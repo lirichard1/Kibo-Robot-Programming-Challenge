@@ -1,0 +1,3 @@
+rootProject.name='imageProcessingTest'
+include ':app'
+

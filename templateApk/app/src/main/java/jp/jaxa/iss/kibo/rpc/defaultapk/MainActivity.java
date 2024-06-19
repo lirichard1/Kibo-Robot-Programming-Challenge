@@ -19,11 +19,11 @@ public class MainActivity extends AppCompatActivity{
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-
-        if (!OpenCVLoader.initDebug()) {
-            Log.e("OpenCV", "Unable to load OpenCV!");
+        if (OpenCVLoader.initLocal()) {
+            Log.i("OpenCV", "OpenCV loaded successfully");
         } else {
-            Log.i("OpenCV", "OpenCV loaded Successfully!");
+            Log.e("OpenCV", "OpenCV initialization failed!");
+            return;
         }
     }
 }

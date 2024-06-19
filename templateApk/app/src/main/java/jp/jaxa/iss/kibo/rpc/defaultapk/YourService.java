@@ -9,8 +9,10 @@ import gov.nasa.arc.astrobee.types.Point;
 import gov.nasa.arc.astrobee.types.Quaternion;
 
 import org.opencv.android.Utils;
-import org.opencv.aruco.Aruco;
-import org.opencv.aruco.Dictionary;
+//import org.opencv.aruco.Aruco;
+//import org.opencv.aruco.Dictionary;
+import org.opencv.objdetect.ArucoDetector;
+import org.opencv.objdetect.Dictionary;
 import org.opencv.core.Core;
 import org.opencv.core.CvType;
 import org.opencv.core.DMatch;
@@ -41,6 +43,7 @@ import java.util.List;
 
 import org.opencv.core.MatOfFloat;
 import org.opencv.objdetect.HOGDescriptor;
+import org.opencv.objdetect.Objdetect;
 
 
 /**
@@ -53,7 +56,7 @@ public class YourService extends KiboRpcService {
             SIM = "SIMULATOR";
     int counter = 0;
 
-    ArucoTagDetector arTagDetector = new ArucoTagDetector();
+    //ArucoTagDetector arTagDetector = new ArucoTagDetector();
 
     //String[] classNames = {"beaker", "goggle", "hammer", "kapton-tape", "pipette", "screwdriver", "thermometer", "top", "watch", "wrench"};
     int numObjects = 0;
@@ -168,15 +171,9 @@ public class YourService extends KiboRpcService {
             }
             if (numObjects > 0) {
                 api.setAreaInfo(1, pred, numObjects);
-            }else  {
+            }else {
                 api.setAreaInfo(1, pred, 4);
             }
-
-            Log.i(TAG, "TESTING OPENCV MOBILE");
-//            OpenCVModel cvModel = new OpenCVModel(this);
-            Log.i(TAG, "LOADED OPENCV MOBILE, STARTING INFERENCES");
-//            Log.i(TAG, "prediction " + cvModel.inference(api.getMatNavCam()));
-            Log.i(TAG, "FINISHED INFERENCE");
 
 //            shiftXLeftRight(point, quaternion, increment);
 //            shiftYInOut(point, quaternion, increment);
@@ -225,11 +222,11 @@ public class YourService extends KiboRpcService {
                 api.saveMatImage(image1, "point_1.png");
             }
 
-            ArrayList corners1 = arTagDetector.detect(image1);
+            //ArrayList corners1 = arTagDetector.detect(image1);
 
-            Log.i(TAG, "FINISHED ARUCO DETECT");
-            String joined1 = TextUtils.join(", ", corners1);
-            Log.i(TAG, joined1);
+            //Log.i(TAG, "FINISHED ARUCO DETECT");
+            //String joined1 = TextUtils.join(", ", corners1);
+            //Log.i(TAG, joined1);
             destination++;
             String pred1 = processImage(image1, templatePaths, destination);
             //int numObjects1 = countObjects(image1);
@@ -283,11 +280,11 @@ public class YourService extends KiboRpcService {
                 api.saveMatImage(image2, "point_2.png");
             }
 
-            ArrayList corners2 = arTagDetector.detect(image2);
+            //ArrayList corners2 = arTagDetector.detect(image2);
 
-            Log.i(TAG, "FINISHED ARUCO DETECT");
-            String joined2 = TextUtils.join(", ", corners2);
-            Log.i(TAG, joined2);
+//            Log.i(TAG, "FINISHED ARUCO DETECT");
+//            String joined2 = TextUtils.join(", ", corners2);
+//            Log.i(TAG, joined2);
             destination++;
             String pred2 = processImage(image2, templatePaths, destination);
             //int numObjects2 = countObjects(image2);
@@ -340,11 +337,11 @@ public class YourService extends KiboRpcService {
                 api.saveMatImage(image3, "point_3.png");
             }
 
-            ArrayList corners3 = arTagDetector.detect(image3);
+            //ArrayList corners3 = arTagDetector.detect(image3);
 
-            Log.i(TAG, "FINISHED ARUCO DETECT");
-            String joined3 = TextUtils.join(", ", corners3);
-            Log.i(TAG, joined3);
+//            Log.i(TAG, "FINISHED ARUCO DETECT");
+//            String joined3 = TextUtils.join(", ", corners3);
+//            Log.i(TAG, joined3);
             destination++;
             String pred3 = processImage(image3, templatePaths, destination);
             //int numObjects3 = countObjects(image3);
@@ -837,7 +834,7 @@ public class YourService extends KiboRpcService {
     private double vectorCrossProduct(org.opencv.core.Point v1, org.opencv.core.Point v2) {
         return v1.x * v2.y - v1.y * v2.x;
     }
-    private Mat extractPaperImage(Mat originalImage, org.opencv.core.Point[] cornersArray) {
+    /*private Mat extractPaperImage(Mat originalImage, org.opencv.core.Point[] cornersArray) {
         // Calculate bounding box of the sub-image
         double minX = Math.min(Math.min(cornersArray[0].x, cornersArray[1].x), Math.min(cornersArray[2].x, cornersArray[3].x));
         double minY = Math.min(Math.min(cornersArray[0].y, cornersArray[1].y), Math.min(cornersArray[2].y, cornersArray[3].y));
@@ -872,16 +869,7 @@ public class YourService extends KiboRpcService {
         return croppedSubImage;
     }
 
-
-  private double compareHOGDescriptors(MatOfFloat targetHOG, MatOfFloat templateHOG) {
-        double distance = 0.0;
-        for (int i = 0; i < targetHOG.rows(); i++) {
-            double diff = targetHOG.get(i, 0)[0] - templateHOG.get(i, 0)[0];
-            distance += diff * diff;
-        }
-        return Math.sqrt(distance);
-    }
-
+*/
     private String processImage(Mat mainImage, List<Integer> templatePaths, int destination) {
         String[] classNames = {"beaker", "goggle", "hammer", "kapton-tape", "pipette", "screwdriver", "thermometer", "top", "watch", "wrench"};
 //        File folder = new File(folderPath);
@@ -891,10 +879,12 @@ public class YourService extends KiboRpcService {
         //Mat gray = new Mat();
         //Imgproc.cvtColor(image, gray, Imgproc.COLOR_BGR2GRAY);
 
-        Dictionary arucoDict = Aruco.getPredefinedDictionary(Aruco.DICT_5X5_250);
+        Dictionary arucoDict = Objdetect.getPredefinedDictionary(Objdetect.DICT_5X5_250);
+        ArucoDetector arucoDetector = new ArucoDetector(arucoDict);
         Mat ids = new Mat();
         List<Mat> corners = new ArrayList<>();
-        Aruco.detectMarkers(gray, arucoDict, corners, ids);
+        arucoDetector.detectMarkers(gray, corners, ids);
+        //Aruco.detectMarkers(gray, arucoDict, corners, ids);
 
         Mat image = new Mat();
         Mat image_markers = new Mat();
@@ -903,7 +893,7 @@ public class YourService extends KiboRpcService {
         image_markers = image.clone();
         //Imgproc.cvtColor(gray, image_markers, Imgproc.COLOR_GRAY2BGR);
 
-        Aruco.drawDetectedMarkers(image_markers, corners, ids);
+        Objdetect.drawDetectedMarkers(image_markers, corners, ids);
 
         api.saveMatImage(image_markers, "aruco_marker" + destination + ".png");
         // Initialize variables for minimum distance calculation
@@ -1059,8 +1049,8 @@ public class YourService extends KiboRpcService {
         String warped_image = "warped" + destination + ".png";
         api.saveMatImage(warped, warped_image);
         int bestIndex = 0;
-        int binaryThreshold = 150;
-        double minAreaThreshold = 10;
+        int binaryThreshold = 160;
+        double minAreaThreshold = 18;
         Mat main_thresh = new Mat();
 
         Mat graywarped=new Mat();
@@ -1087,12 +1077,14 @@ public class YourService extends KiboRpcService {
         Log.i(TAG, "Number of objects: " + numObjects);
 
         // classify image base on  ORB /hog detector
-        // Initialize HOG descriptor
 
-
+/*
 
         ORB orb = ORB.create();
-
+        MatOfKeyPoint kp2 = new MatOfKeyPoint();
+        Mat des2 = new Mat();
+        orb.detectAndCompute(graywarped, new Mat(), kp2, des2);
+        MatOfKeyPoint kp1 = new MatOfKeyPoint();
         // Use BFMatcher to find matches between descriptors
         BFMatcher bf = BFMatcher.create(DescriptorMatcher.BRUTEFORCE_HAMMING, true);
         String bestTemplatePath = null;
@@ -1102,7 +1094,7 @@ public class YourService extends KiboRpcService {
         int index = 0;
 
         for (Integer templatePath : templatePaths) {
-            Log.i(TAG, "LOOPING THROUGH TEMPLATE PATHS");
+           // Log.i(TAG, "LOOPING THROUGH TEMPLATE PATHS");
             Bitmap templateBitmap = BitmapFactory.decodeResource(getResources(), templatePath);
             Mat template = new Mat();
             Utils.bitmapToMat(templateBitmap, template);
@@ -1114,19 +1106,22 @@ public class YourService extends KiboRpcService {
             Mat templateThresh = new Mat();
             //Imgproc.threshold(grayTemplate, templateThresh, binaryThreshold, 255, Imgproc.THRESH_BINARY);
             //MatOfDMatch matches = matchTemplate(main_thresh, templateThresh, orb, bf);
-            MatOfDMatch matches = matchTemplate(graywarped,grayTemplate, orb, bf);
-
-            List<MatOfDMatch> matchesList = new ArrayList<>();
-            matchesList.add(matches);
-            List<DMatch> goodMatches = new ArrayList<>();
-            for (DMatch match : matches.toList()) {
-                Log.i(TAG, "LOOPING THROUGH MATCHES, LOOKING FOR GOOD MATCHES:" + String.valueOf(match.distance));
-                if (match.distance < goodMatchThreshold) {
-                    Log.i(TAG, "ADDING GOOD MATCHES");
-                    goodMatches.add(match);
-                }
-
-            }
+            //MatOfDMatch matches = matchTemplate(graywarped,grayTemplate, orb, bf);
+            Mat des1 = new Mat();
+            orb.detectAndCompute(grayTemplate, new Mat(), kp1, des1);
+            MatOfDMatch matches = new MatOfDMatch();
+            if( !des1.empty()  &&  !des2.empty()) {
+                bf.match(des1, des2, matches);
+                List<MatOfDMatch> matchesList = new ArrayList<>();
+                matchesList.add(matches);
+                List<DMatch> goodMatches = new ArrayList<>();
+                for (DMatch match : matches.toList()) {
+                   // Log.i(TAG, "LOOPING THROUGH MATCHES, LOOKING FOR GOOD MATCHES:" + String.valueOf(match.distance));
+                    if (match.distance < goodMatchThreshold) {
+                      Log.i(TAG, "ADDING GOOD MATCHES");
+                        goodMatches.add(match);
+                    }
+                   }
 
             int numGoodMatches = goodMatches.size();
             if (numGoodMatches > bestNumGoodMatches) {
@@ -1136,6 +1131,7 @@ public class YourService extends KiboRpcService {
                 bestMatches = new MatOfDMatch();
                 bestMatches.fromList(goodMatches);
                 bestIndex = index;
+              }
             }
             index++;
 
@@ -1143,7 +1139,16 @@ public class YourService extends KiboRpcService {
         Log.i(TAG, "bestIndex: " + bestIndex);
 
         return classNames[bestIndex];
+*/
+        // Use OpenCV model here
+        Log.i(TAG, "TESTING OPENCV MOBILE");
+        OpenCVModel cvModel = new OpenCVModel(this);
+        Log.i(TAG, "LOADED OPENCV MOBILE, STARTING INFERENCES");
+        String pred = cvModel.inference(warped);
+        Log.i(TAG, "prediction 0 " + pred);
+        Log.i(TAG, "FINISHED INFERENCE");
 
+        return pred;
     }
 }
 //    private MappedByteBuffer loadModelFile() throws IOException {

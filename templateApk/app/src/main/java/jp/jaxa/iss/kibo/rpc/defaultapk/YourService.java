@@ -243,20 +243,6 @@ public class YourService extends KiboRpcService {
                 api.setAreaInfo(2, pred1, 4);
             }
 
-
-            //predictions.add(doInference(image1, model));
-
-//            shiftXLeftRight(point2, quaternion1, increment);
-//            shiftYInOut(point2, quaternion1, increment);
-//            shiftZUpDown(point2, quaternion1, increment);
-//
-//            result = api.moveTo(point3, quaternion1, true);
-//            while (!result.hasSucceeded() && loopCounter < LOOP_MAX) {
-//                result = api.moveTo(point3, quaternion, true);
-//                ++loopCounter;
-//
-//            }
-
             result = api.moveTo(point4, quaternion1, true);
             while (!result.hasSucceeded() && loopCounter < LOOP_MAX) {
                 result = api.moveTo(point4, quaternion1, true);
@@ -301,10 +287,6 @@ public class YourService extends KiboRpcService {
             {
                 api.setAreaInfo(3, pred2, 4);
             }
-//            shiftXLeftRight(point4, quaternion1, increment);
-//            shiftYInOut(point4, quaternion1, increment);
-//            shiftZUpDown(point4, quaternion1, increment);
-            //predictions.add(doInference(image2, model));
 
 
             result = api.moveTo(point5, quaternion1, true);
@@ -320,6 +302,25 @@ public class YourService extends KiboRpcService {
                 ++loopCounter;
 
             }
+
+            api.flashlightControlFront(0.5f);
+            Thread.sleep(2000);
+            Mat target_item = api.getMatNavCam();
+            api.flashlightControlFront(0.0f);
+            if (target_item == null) {
+                while (target_item == null && imgRetries < img_MAX) {
+                    api.flashlightControlFront(0.05f);
+                    Thread.sleep(2000);
+                    target_item = api.getMatNavCam();
+                    api.flashlightControlFront(0.0f);
+                    imgRetries++;
+                }
+
+
+
+
+
+
             api.flashlightControlFront(0.5f);
             Thread.sleep(2000);
             Mat image3 = api.getMatNavCam();
@@ -358,13 +359,6 @@ public class YourService extends KiboRpcService {
                 api.setAreaInfo(4, pred3, 4);
             }
 
-//            shiftXLeftRight(point6, quaternion2, increment);
-//            shiftYInOut(point6, quaternion2, increment);
-//            shiftZUpDown(point6, quaternion2, increment);
-            //predictions.add(doInference(image3, model));
-
-//            String[] args = {"astrobee_seperated.png","template.jpg"};
-//            new MatchTemplate().run(args);
             result = api.moveTo(astronaut, quaternion3, true);
             while (!result.hasSucceeded() && loopCounter < LOOP_MAX) {
                 result = api.moveTo(astronaut, quaternion3, true);
@@ -392,9 +386,13 @@ public class YourService extends KiboRpcService {
             destination++;
             String targetClass = processImage(target_item, templatePaths, destination);
             api.notifyRecognitionItem();
+            Log.i("ROT", "targetClass:"+targetClass);
+            Log.i("ROT", "Predictions Array is");
+            Log.i("ROT", TextUtils.join(", ", predictions));
 
             for (int i = 0; i < predictions.size(); i++) {
                 if (predictions.get(i).equals(targetClass)) {
+                    Log.i("ROT", "Going to target at" + String.valueOf(i));
                     if (i == 0) {
                         api.moveTo(point5, quaternion, true);
                         api.moveTo(point4, quaternion, true);
@@ -402,14 +400,12 @@ public class YourService extends KiboRpcService {
                         api.moveTo(point1, quaternion, true);
                         api.moveTo(point, quaternion, true);
                         api.takeTargetItemSnapshot();
-
                     }
                     if (i == 1) {
                         api.moveTo(point5, quaternion1, true);
                         api.moveTo(point4, quaternion1, true);
                         api.moveTo(point2, quaternion1, true);
                         api.takeTargetItemSnapshot();
-
                     }
                     if (i == 2) {
                         api.moveTo(point5, quaternion2, true);
@@ -1066,14 +1062,36 @@ public class YourService extends KiboRpcService {
         Imgproc.findContours(mainEdges, contoursMain, hierarchy1, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE);
 
         List<MatOfPoint> filteredMergedContours = new ArrayList<>();
-        List<MatOfPoint> mergedContours = mergeContours(contoursMain, 10);
+        List<MatOfPoint> mergedContours = mergeContours(contoursMain, 3);
         for (MatOfPoint main_contour : mergedContours) {
-            Log.i(TAG, "LOOPING THROUGH MERGED CONTOURS, STARTING FILTER");
+           // Log.i(TAG, "LOOPING THROUGH MERGED CONTOURS, STARTING FILTER");
             if (Imgproc.contourArea(main_contour) >= minAreaThreshold) {
                 filteredMergedContours.add(main_contour);
             }
         }
-        numObjects = filteredMergedContours.size() - 2;
+
+          // Sort contours by area
+        Collections.sort(filteredMergedContours, new Comparator<MatOfPoint>() {
+            @Override
+            public int compare(MatOfPoint contour1, MatOfPoint contour2) {
+                double area1 = Imgproc.contourArea(contour1);
+                double area2 = Imgproc.contourArea(contour2);
+                return Double.compare(area2, area1);
+            }
+        });
+
+        Rect boundingRect0 = Imgproc.boundingRect(filteredMergedContours.get(0));
+        int w = boundingRect0.width;
+        int h = boundingRect0.height;
+        double barea=w*h;
+        numObjects=0;
+        for (MatOfPoint contour : filteredMergedContours) {
+            Rect boundingRect = Imgproc.boundingRect(contour);
+            double ratio=boundingRect.width*boundingRect.height/barea;
+            if (ratio>0.4) numObjects+=1;
+        }
+
+        numObjects-=1;
         Log.i(TAG, "Number of objects: " + numObjects);
 
         // classify image base on  ORB /hog detector

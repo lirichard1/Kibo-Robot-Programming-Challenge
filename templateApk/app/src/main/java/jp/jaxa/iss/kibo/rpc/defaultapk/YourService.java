@@ -39,6 +39,8 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
+import org.opencv.core.MatOfFloat;
+import org.opencv.objdetect.HOGDescriptor;
 
 
 /**
@@ -55,8 +57,9 @@ public class YourService extends KiboRpcService {
 
     //String[] classNames = {"beaker", "goggle", "hammer", "kapton-tape", "pipette", "screwdriver", "thermometer", "top", "watch", "wrench"};
     int numObjects = 0;
+
     @Override
-    protected void runPlan1(){
+    protected void runPlan1() {
 
         api.startMission();
         Result result;
@@ -71,12 +74,11 @@ public class YourService extends KiboRpcService {
         Point point1 = new Point(11.343d, -9.2814d, 5.3594d);
         Point point2 = new Point(10.974d, -8.8799d, 4.6309d);
         //Point point3 = new Point(11.303d, -8.7276d, 4.5397d);
-        Point point4 = new Point(10.924d, -7.9268d,4.5397d);
-        Point point5 = new Point(10.563d, -7.4084d,4.5397d);
-        Point point6 = new Point(10.557d, -6.8833d,4.8351d);
+        Point point4 = new Point(10.924d, -7.9268d, 4.5397d);
+        Point point5 = new Point(10.563d, -7.4084d, 4.5397d);
+        Point point6 = new Point(10.557d, -6.8833d, 4.8351d);
 
         Point astronaut = new Point(11.143d, -6.7607d, 4.9654d);
-
 
 
         double increment = 0.2;
@@ -90,13 +92,13 @@ public class YourService extends KiboRpcService {
 
         Quaternion quaternion = new Quaternion(0f, 0f, -0.707f, 0.707f);
         Quaternion quaternion1 = new Quaternion(0f, 0.707f, 0f, 0.707f);
-        Quaternion quaternion2= new Quaternion(0f,0f,1f,0f);
+        Quaternion quaternion2 = new Quaternion(0f, 0f, 1f, 0f);
         Quaternion quaternion3 = new Quaternion(0f, 0f, 0.707f, 0.707f);
 
         Quaternion testIncrement = new Quaternion(0.383f, 0f, 0f, 0.924f);
-        Quaternion incrementX = new Quaternion(0.0261f,0.01f,0.01f,0.9996f);
-        Quaternion incrementY = new Quaternion(0f,0.0261f,0f,0.9996f);
-        Quaternion incrementZ = new Quaternion(0f,0f,0.0261f,0.9996f);
+        Quaternion incrementX = new Quaternion(0.0261f, 0.01f, 0.01f, 0.9996f);
+        Quaternion incrementY = new Quaternion(0f, 0.0261f, 0f, 0.9996f);
+        Quaternion incrementZ = new Quaternion(0f, 0f, 0.0261f, 0.9996f);
 
 
         ArrayList<Integer> templatePaths = new ArrayList<Integer>();
@@ -125,7 +127,7 @@ public class YourService extends KiboRpcService {
             api.flashlightControlFront(0.01f);
             Thread.sleep(2000);
 
-            
+
             Bitmap image_bmp = api.getBitmapNavCam();
             Log.i(TAG, "Bitmap gotten success!");
             Mat image = api.getMatNavCam();
@@ -151,18 +153,23 @@ public class YourService extends KiboRpcService {
 //            Log.i(TAG, "FINISHED ARUCO DETECT");
 //            String joined = TextUtils.join(", ", corners);
 //            Log.i(TAG, joined);
-
+            int destination = 0;
             Log.i(TAG, "ABOUT TO DO PREDICTIONS");
-            String pred = processImage(image, templatePaths);
+            String pred = processImage(image, templatePaths, destination);
             Log.i(TAG, "FINISHED IMAGE RECOGNITION, START COUNT OBJECTS");
             Log.i(TAG, "FINISHED COUNT OBJECTS");
 
             if (pred != null) {
                 api.setAreaInfo(1, pred);
                 predictions.add(pred);
+            } else {
+                Log.i(TAG, "Prediction is null for area 1, guessing");
+                api.setAreaInfo(1, "Beaker", 1);
             }
-            if (numObjects!=0) {
+            if (numObjects > 0) {
                 api.setAreaInfo(1, pred, numObjects);
+            }else  {
+                api.setAreaInfo(1, pred, 4);
             }
 
             Log.i(TAG, "TESTING OPENCV MOBILE");
@@ -174,7 +181,6 @@ public class YourService extends KiboRpcService {
 //            shiftXLeftRight(point, quaternion, increment);
 //            shiftYInOut(point, quaternion, increment);
 //            shiftZUpDown(point, quaternion, increment);
-
 
 
 //            incrementXRight = new Point(point.getX()+increment, point.getY(), point.getZ());
@@ -224,15 +230,20 @@ public class YourService extends KiboRpcService {
             Log.i(TAG, "FINISHED ARUCO DETECT");
             String joined1 = TextUtils.join(", ", corners1);
             Log.i(TAG, joined1);
-
-            String pred1 = processImage(image1, templatePaths);
+            destination++;
+            String pred1 = processImage(image1, templatePaths, destination);
             //int numObjects1 = countObjects(image1);
-            if (pred1!=null) {
+            if (pred1 != null) {
                 api.setAreaInfo(2, pred1);
                 predictions.add(pred1);
+            } else {
+                Log.i(TAG, "Prediction is null for area 2, guessing");
+                api.setAreaInfo(2, "Beaker", 2);
             }
-            if (numObjects!=0) {
+            if (numObjects > 0) {
                 api.setAreaInfo(2, pred1, numObjects);
+            }else {
+                api.setAreaInfo(2, pred1, 4);
             }
 
 
@@ -277,15 +288,21 @@ public class YourService extends KiboRpcService {
             Log.i(TAG, "FINISHED ARUCO DETECT");
             String joined2 = TextUtils.join(", ", corners2);
             Log.i(TAG, joined2);
-
-            String pred2 = processImage(image2, templatePaths);
+            destination++;
+            String pred2 = processImage(image2, templatePaths, destination);
             //int numObjects2 = countObjects(image2);
-            if (pred2!=null) {
+            if (pred2 != null) {
                 api.setAreaInfo(3, pred2);
                 predictions.add(pred2);
+            } else {
+                Log.i(TAG, "Prediction is null for area 2, guessing");
+                api.setAreaInfo(3, "Beaker", 3);
             }
-            if (numObjects!=0) {
+            if (numObjects > 0) {
                 api.setAreaInfo(3, pred2, numObjects);
+            } else
+            {
+                api.setAreaInfo(3, pred2, 4);
             }
 //            shiftXLeftRight(point4, quaternion1, increment);
 //            shiftYInOut(point4, quaternion1, increment);
@@ -328,15 +345,20 @@ public class YourService extends KiboRpcService {
             Log.i(TAG, "FINISHED ARUCO DETECT");
             String joined3 = TextUtils.join(", ", corners3);
             Log.i(TAG, joined3);
-
-            String pred3 = processImage(image3, templatePaths);
+            destination++;
+            String pred3 = processImage(image3, templatePaths, destination);
             //int numObjects3 = countObjects(image3);
-            if (pred3!=null) {
+            if (pred3 != null) {
                 api.setAreaInfo(4, pred3);
                 predictions.add(pred3);
+            } else {
+                Log.i(TAG, "Prediction is null for area 4, guessing");
+                api.setAreaInfo(4, "Beaker", 1);
             }
-            if (numObjects!=0) {
+            if (numObjects > 0) {
                 api.setAreaInfo(4, pred3, numObjects);
+            }else {
+                api.setAreaInfo(4, pred3, 4);
             }
 
 //            shiftXLeftRight(point6, quaternion2, increment);
@@ -370,48 +392,42 @@ public class YourService extends KiboRpcService {
             } else {
                 api.saveMatImage(target_item, "target_item.png");
             }
-
-            String targetClass = processImage(target_item, templatePaths);
+            destination++;
+            String targetClass = processImage(target_item, templatePaths, destination);
             api.notifyRecognitionItem();
 
-            for (int i = 0;i<predictions.size();i++) {
+            for (int i = 0; i < predictions.size(); i++) {
                 if (predictions.get(i).equals(targetClass)) {
-                    if (i==0) {
-                        api.moveTo(point5, quaternion,true);
-                        api.moveTo(point4, quaternion,true);
-                        api.moveTo(point2, quaternion,true);
-                        api.moveTo(point1, quaternion,true);
+                    if (i == 0) {
+                        api.moveTo(point5, quaternion, true);
+                        api.moveTo(point4, quaternion, true);
+                        api.moveTo(point2, quaternion, true);
+                        api.moveTo(point1, quaternion, true);
                         api.moveTo(point, quaternion, true);
                         api.takeTargetItemSnapshot();
 
                     }
                     if (i == 1) {
-                        api.moveTo(point5, quaternion1,true);
-                        api.moveTo(point4, quaternion1,true);
-                        api.moveTo(point2, quaternion1,true);
+                        api.moveTo(point5, quaternion1, true);
+                        api.moveTo(point4, quaternion1, true);
+                        api.moveTo(point2, quaternion1, true);
                         api.takeTargetItemSnapshot();
 
                     }
-                    if ( i ==2) {
-                        api.moveTo(point5, quaternion2,true);
-                        api.moveTo(point4, quaternion2,true);
+                    if (i == 2) {
+                        api.moveTo(point5, quaternion2, true);
+                        api.moveTo(point4, quaternion2, true);
                         api.takeTargetItemSnapshot();
                     }
                     if (i == 3) {
-                        api.moveTo(point6, quaternion2,true);
+                        api.moveTo(point6, quaternion2, true);
                         api.takeTargetItemSnapshot();
                     }
                 }
             }
 
 
-
-
-
-
-
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             Log.d(TAG, e.getClass().getSimpleName() + ": " + e.getMessage());
         }
 //        result = api.moveTo(point3, quaternion, true);
@@ -438,15 +454,14 @@ public class YourService extends KiboRpcService {
     }
 
     @Override
-    protected void runPlan2(){
+    protected void runPlan2() {
         // write your plan 2 here
     }
 
     @Override
-    protected void runPlan3(){
+    protected void runPlan3() {
 
     }
-
 
 
     @SuppressWarnings("UnusedReturnValue")
@@ -655,69 +670,54 @@ public class YourService extends KiboRpcService {
 //        return bestTemplatePath;
 //    }
 
-    public int countObjects(Mat image) {
-        int binaryThresh = 100;
-        int numObjects = 0;
-        // Convert the image to grayscale (if not already done)
-        //Mat grayImage = new Mat();
-        //Imgproc.cvtColor(image, grayImage, Imgproc.COLOR_BGR2GRAY);
-        //Log.i(TAG, "CONVERTED TO GRAYSCALE");
-        //GRAYSCALE CAUSING ISSUES
-
-        // Apply binary threshold
-        Mat mainThresh = new Mat();
-        Imgproc.threshold(image, mainThresh, binaryThresh, 255, Imgproc.THRESH_BINARY);
-
-        Log.i(TAG, "APPLIED BINARY THRESHOLDING");
-
-        // Detect edges using Canny
-        Mat mainEdges = new Mat();
-        Imgproc.Canny(mainThresh, mainEdges, 100, 200);
-
-        Log.i(TAG, "DETECTED EDGES USING CANNY");
-
-        // Find contours
-        List<MatOfPoint> contoursMain = new ArrayList<>();
-        Mat hierarchy = new Mat();
-        Imgproc.findContours(mainEdges, contoursMain, hierarchy, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE);
-
-        Log.i(TAG, "FOUND CONTOURS");
-
-        // Filter contours based on minimum area
-        double minAreaThreshold = 20.0;
-        List<MatOfPoint> filteredContoursMain = new ArrayList<>();
-        for (MatOfPoint contour : contoursMain) {
-            if (Imgproc.contourArea(contour) >= minAreaThreshold) {
-                filteredContoursMain.add(contour);
-            }
-        }
-
-        Log.i(TAG, "FILTERED CONTOURS");
-
-        // Get the number of objects (contours) found, subtracting 1
-        numObjects = filteredContoursMain.size() - 1;
-
-        // Print the result (for debugging purposes)
-        Log.i(TAG, "Number of objects: " + numObjects);
-
-        return numObjects;
-    }
-
-    public static Mat decimateImage(Mat image, double scaleFactor) {
-        // Get the original dimensions of the image
-        int originalHeight = image.height();
-        int originalWidth = image.width();
-
-        // Calculate the new dimensions
-        int newWidth = (int) (originalWidth * scaleFactor);
-        int newHeight = (int) (originalHeight * scaleFactor);
-
-        // Resize the image
-        Mat decimatedImage = new Mat();
-        Imgproc.resize(image, decimatedImage, new Size(newWidth, newHeight), 0, 0, Imgproc.INTER_AREA);
-
-        return decimatedImage;
-    }
+//    public int countObjects(Mat image) {
+//        int binaryThresh = 100;
+//        int numObjects = 0;
+//        // Convert the image to grayscale (if not already done)
+//        //Mat grayImage = new Mat();
+//        //Imgproc.cvtColor(image, grayImage, Imgproc.COLOR_BGR2GRAY);
+//        //Log.i(TAG, "CONVERTED TO GRAYSCALE");
+//        //GRAYSCALE CAUSING ISSUES
+//
+//        // Apply binary threshold
+//        Mat mainThresh = new Mat();
+//        Imgproc.threshold(image, mainThresh, binaryThresh, 255, Imgproc.THRESH_BINARY);
+//
+//        Log.i(TAG, "APPLIED BINARY THRESHOLDING");
+//
+//        // Detect edges using Canny
+//        Mat mainEdges = new Mat();
+//        Imgproc.Canny(mainThresh, mainEdges, 100, 200);
+//
+//        Log.i(TAG, "DETECTED EDGES USING CANNY");
+//
+//        // Find contours
+//        List<MatOfPoint> contoursMain = new ArrayList<>();
+//        Mat hierarchy = new Mat();
+//        Imgproc.findContours(mainEdges, contoursMain, hierarchy, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE);
+//
+//        Log.i(TAG, "FOUND CONTOURS");
+//
+//        // Filter contours based on minimum area
+//        double minAreaThreshold = 20.0;
+//        List<MatOfPoint> filteredContoursMain = new ArrayList<>();
+//        for (MatOfPoint contour : contoursMain) {
+//            if (Imgproc.contourArea(contour) >= minAreaThreshold) {
+//                filteredContoursMain.add(contour);
+//            }
+//        }
+//
+//        Log.i(TAG, "FILTERED CONTOURS");
+//
+//        // Get the number of objects (contours) found, subtracting 1
+//        numObjects = filteredContoursMain.size() - 1;
+//
+//        // Print the result (for debugging purposes)
+//        Log.i(TAG, "Number of objects: " + numObjects);
+//
+//        return numObjects;
+//    }
+//
 
     public static List<MatOfPoint> mergeContours(List<MatOfPoint> contours, int proximityThreshold) {
         // Calculate bounding rectangles for all contours
@@ -806,235 +806,346 @@ public class YourService extends KiboRpcService {
         return matches;
     }
 
+    public boolean isArucoInsideRectangle(org.opencv.core.Point[] innerVertices, org.opencv.core.Point[] outerVertices) {
+        // Check if all vertices of the inner rectangle are inside the outer rectangle
 
-    private String processImage(Mat mainImage, List<Integer> templatePaths) {
-          String[] classNames = {"beaker", "goggle", "hammer", "kapton-tape", "pipette", "screwdriver", "thermometer", "top", "watch", "wrench"};
+        for (org.opencv.core.Point vertex : innerVertices) {
+            if (!isPointInsideBoundingBox(vertex, outerVertices)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private boolean isPointInsideBoundingBox(org.opencv.core.Point p, org.opencv.core.Point[] boundingBox) {
+        // Use cross product to determine if point is inside the bounding box
+        return isPointInTriangle(p, boundingBox[0], boundingBox[1], boundingBox[2]) ||
+                isPointInTriangle(p, boundingBox[0], boundingBox[2], boundingBox[3]);
+    }
+
+    private boolean isPointInTriangle(org.opencv.core.Point p, org.opencv.core.Point v1, org.opencv.core.Point v2, org.opencv.core.Point v3) {
+        double d1 = vectorCrossProduct(new org.opencv.core.Point(p.x - v1.x, p.y - v1.y), new org.opencv.core.Point(v2.x - v1.x, v2.y - v1.y));
+        double d2 = vectorCrossProduct(new org.opencv.core.Point(p.x - v2.x, p.y - v2.y), new org.opencv.core.Point(v3.x - v2.x, v3.y - v2.y));
+        double d3 = vectorCrossProduct(new org.opencv.core.Point(p.x - v3.x, p.y - v3.y), new org.opencv.core.Point(v1.x - v3.x, v1.y - v3.y));
+
+        boolean hasNeg = (d1 < 0) || (d2 < 0) || (d3 < 0);
+        boolean hasPos = (d1 > 0) || (d2 > 0) || (d3 > 0);
+
+        return !(hasNeg && hasPos);
+    }
+
+    private double vectorCrossProduct(org.opencv.core.Point v1, org.opencv.core.Point v2) {
+        return v1.x * v2.y - v1.y * v2.x;
+    }
+    private Mat extractPaperImage(Mat originalImage, org.opencv.core.Point[] cornersArray) {
+        // Calculate bounding box of the sub-image
+        double minX = Math.min(Math.min(cornersArray[0].x, cornersArray[1].x), Math.min(cornersArray[2].x, cornersArray[3].x));
+        double minY = Math.min(Math.min(cornersArray[0].y, cornersArray[1].y), Math.min(cornersArray[2].y, cornersArray[3].y));
+        double maxX = Math.max(Math.max(cornersArray[0].x, cornersArray[1].x), Math.max(cornersArray[2].x, cornersArray[3].x));
+        double maxY = Math.max(Math.max(cornersArray[0].y, cornersArray[1].y), Math.max(cornersArray[2].y, cornersArray[3].y));
+
+        int width = (int) (maxX - minX);
+        int height = (int) (maxY - minY);
+
+        // Create a mask for the polygon
+        Mat mask = Mat.zeros(originalImage.size(), CvType.CV_8UC1);
+        org.opencv.core.Point[] polygon = new org.opencv.core.Point[]{
+                new org.opencv.core.Point(cornersArray[0].x - minX, cornersArray[0].y - minY),
+                new org.opencv.core.Point(cornersArray[1].x - minX, cornersArray[1].y - minY),
+                new org.opencv.core.Point(cornersArray[2].x - minX, cornersArray[2].y - minY),
+                new org.opencv.core.Point(cornersArray[3].x - minX, cornersArray[3].y - minY)
+        };
+
+        MatOfPoint matOfPoint = new MatOfPoint(polygon);
+        List<MatOfPoint> listOfPoints = new ArrayList<>();
+        listOfPoints.add(matOfPoint);
+        Imgproc.fillPoly(mask, listOfPoints, new Scalar(255));
+
+        // Extract the sub-image using the mask
+        Mat subImageMat = new Mat();
+        originalImage.copyTo(subImageMat, mask);
+
+        // Crop the sub-image to the bounding box
+        Rect boundingBox = new Rect((int) minX, (int) minY, width, height);
+        Mat croppedSubImage = new Mat(subImageMat, boundingBox);
+
+        return croppedSubImage;
+    }
+
+
+  private double compareHOGDescriptors(MatOfFloat targetHOG, MatOfFloat templateHOG) {
+        double distance = 0.0;
+        for (int i = 0; i < targetHOG.rows(); i++) {
+            double diff = targetHOG.get(i, 0)[0] - templateHOG.get(i, 0)[0];
+            distance += diff * diff;
+        }
+        return Math.sqrt(distance);
+    }
+
+    private String processImage(Mat mainImage, List<Integer> templatePaths, int destination) {
+        String[] classNames = {"beaker", "goggle", "hammer", "kapton-tape", "pipette", "screwdriver", "thermometer", "top", "watch", "wrench"};
 //        File folder = new File(folderPath);
 //        File[] files = folder.listFiles();
 
-              Mat gray = mainImage;
-              //Mat gray = new Mat();
-              //Imgproc.cvtColor(image, gray, Imgproc.COLOR_BGR2GRAY);
+        Mat gray = mainImage;
+        //Mat gray = new Mat();
+        //Imgproc.cvtColor(image, gray, Imgproc.COLOR_BGR2GRAY);
 
-              Dictionary arucoDict = Aruco.getPredefinedDictionary(Aruco.DICT_5X5_250);
-              Mat ids = new Mat();
-              List<Mat> corners = new ArrayList<>();
+        Dictionary arucoDict = Aruco.getPredefinedDictionary(Aruco.DICT_5X5_250);
+        Mat ids = new Mat();
+        List<Mat> corners = new ArrayList<>();
+        Aruco.detectMarkers(gray, arucoDict, corners, ids);
 
-              Aruco.detectMarkers(gray, arucoDict, corners, ids);
+        Mat image = new Mat();
+        Mat image_markers = new Mat();
 
-              Mat image = new Mat();
-              Mat image_markers=new Mat();
-              Imgproc.cvtColor(gray, image, Imgproc.COLOR_GRAY2BGR);
-              Imgproc.cvtColor(gray, image_markers, Imgproc.COLOR_GRAY2BGR);
-              Aruco.drawDetectedMarkers(image_markers, corners, ids);
-              api.saveMatImage(image_markers, "aruco_marker.png");
-                // Initialize variables for minimum distance calculation
-              double mindist = 6000;
-              int m = 0;
+        Imgproc.cvtColor(gray, image, Imgproc.COLOR_GRAY2BGR);
+        image_markers = image.clone();
+        //Imgproc.cvtColor(gray, image_markers, Imgproc.COLOR_GRAY2BGR);
 
-              // Iterate through detected markers
-              for (int i = 0; i < ids.rows(); i++) {
-                  MatOfPoint2f cornerMat = new MatOfPoint2f(corners.get(i));
-                  org.opencv.core.Point[] points = cornerMat.toArray();
-                  double sumX = 0, sumY = 0;
-                  for (org.opencv.core.Point point : points) {
-                      sumX += point.x;
-                      sumY += point.y;
-                  }
-                  double centerX = sumX / points.length;
-                  double centerY = sumY / points.length;
+        Aruco.drawDetectedMarkers(image_markers, corners, ids);
 
-                  // Calculate distance from center of image (assuming image size is 1280x960)
-                  double dist = Math.sqrt(Math.pow(centerX - 640, 2) + Math.pow(centerY - 480, 2));
-                  if (dist < mindist) {
-                      mindist = dist;
-                      m = i;
-                  }
-              }
+        api.saveMatImage(image_markers, "aruco_marker" + destination + ".png");
+        // Initialize variables for minimum distance calculation
+        double mindist = 6000;
+        int m = 0;
 
-              // Retrieve the closest marker corners
-              Mat aruco_corners = corners.get(m);
-              // Convert aruco_corners to 4x2 matrix
-              MatOfPoint2f arucoCorners = new MatOfPoint2f(aruco_corners);
-              org.opencv.core.Point[] arucoCornersArray = arucoCorners.toArray();
+        // Iterate through detected markers
+        for (int i = 0; i < ids.rows(); i++) {
+            MatOfPoint2f cornerMat = new MatOfPoint2f(corners.get(i));
+            org.opencv.core.Point[] points = cornerMat.toArray();
+            double sumX = 0, sumY = 0;
+            for (org.opencv.core.Point point : points) {
+                sumX += point.x;
+                sumY += point.y;
+            }
+            double centerX = sumX / points.length;
+            double centerY = sumY / points.length;
 
-              Mat edges = new Mat();
-              Imgproc.Canny(image, edges, 50, 150);
+            // Calculate distance from center of image (assuming image size is 1280x960)
+            double dist = Math.sqrt(Math.pow(centerX - 640, 2) + Math.pow(centerY - 480, 2));
+            if (dist < mindist) {
+                mindist = dist;
+                m = i;
+            }
+        }
 
-
-              Mat hierarchy = new Mat();
-              List<MatOfPoint> contoursList = new ArrayList<>();
-              Imgproc.findContours(edges, contoursList, hierarchy, Imgproc.RETR_TREE, Imgproc.CHAIN_APPROX_SIMPLE);
-              // Convert contours to MatOfPoint2f
-              List<MatOfPoint2f> contours = new ArrayList<>();
-              for (MatOfPoint contour : contoursList) {
-                  MatOfPoint2f contour2f = new MatOfPoint2f(contour.toArray());
-                  contours.add(contour2f);
-              }
-              // Sort contours by area
-              Collections.sort(contours, new Comparator<MatOfPoint2f>() {
-                  @Override
-                  public int compare(MatOfPoint2f contour1, MatOfPoint2f contour2) {
-                      double area1 = Imgproc.contourArea(contour1);
-                      double area2 = Imgproc.contourArea(contour2);
-                      return Double.compare(area2, area1);
-                  }
-              });
-              boolean found = false;
-              for (MatOfPoint2f contour : contours) {
-                  double epsilon = 0.02 * Imgproc.arcLength(contour, true);
-                  MatOfPoint2f approx = new MatOfPoint2f();
-                  Imgproc.approxPolyDP(contour, approx, epsilon, true);
-
-                  if (approx.total() == 4) {
-                      Mat imageContours = image.clone();
-
-                      List<MatOfPoint> contourList1 = new ArrayList<>();
-                      contourList1.add(new MatOfPoint(approx.toArray())); // Convert back to MatOfPoint
-                      Imgproc.drawContours(imageContours, contourList1, -1, new Scalar(0, 255, 0), 3);
+        // Retrieve the closest marker corners
+        Mat aruco_corners = corners.get(m);
+        // Convert aruco_corners to 4x2 matrix
+        MatOfPoint2f arucoCorners = new MatOfPoint2f(aruco_corners);
+        org.opencv.core.Point[] arucoCornersArray = arucoCorners.toArray();
+        double aruco_width = Math.sqrt(Math.pow(arucoCornersArray[1].x - arucoCornersArray[0].x,2) + Math.pow(arucoCornersArray[1].y - arucoCornersArray[0].y, 2));
+        double aruco_height = Math.sqrt(Math.pow(arucoCornersArray[2].x - arucoCornersArray[1].x, 2) + Math.pow(arucoCornersArray[2].y - arucoCornersArray[1].y, 2));
+        double aruco_area=aruco_width*aruco_height;
+        Mat edges = new Mat();
+        Imgproc.Canny(image, edges, 50, 150);
 
 
-                      org.opencv.core.Point[] cornersArray = approx.toArray();
-                      org.opencv.core.Point top_left = cornersArray[0];
-                      org.opencv.core.Point top_right = cornersArray[1];
-                      org.opencv.core.Point bottom_right = cornersArray[2];
-                      org.opencv.core.Point bottom_left = cornersArray[3];
+        Mat hierarchy = new Mat();
+        List<MatOfPoint> contoursList = new ArrayList<>();
+        Imgproc.findContours(edges, contoursList, hierarchy, Imgproc.RETR_TREE, Imgproc.CHAIN_APPROX_SIMPLE);
+        // Convert contours to MatOfPoint2f
+        List<MatOfPoint2f> contours = new ArrayList<>();
+        for (MatOfPoint contour : contoursList) {
+            MatOfPoint2f contour2f = new MatOfPoint2f(contour.toArray());
+            contours.add(contour2f);
+        }
+        // Sort contours by area
+        Collections.sort(contours, new Comparator<MatOfPoint2f>() {
+            @Override
+            public int compare(MatOfPoint2f contour1, MatOfPoint2f contour2) {
+                double area1 = Imgproc.contourArea(contour1);
+                double area2 = Imgproc.contourArea(contour2);
+                return Double.compare(area2, area1);
+            }
+        });
+        boolean found = false;
+        Mat warped = new Mat();
+        for (MatOfPoint2f contour : contours) {
+            double epsilon = 0.02 * Imgproc.arcLength(contour, true);
+            MatOfPoint2f approx = new MatOfPoint2f();
+            Imgproc.approxPolyDP(contour, approx, epsilon, true);
 
-                      // Determine the width and height of the detected rectangle
-                      double width = Math.sqrt(Math.pow(top_right.x - top_left.x, 2) + Math.pow(top_right.y - top_left.y, 2));
-                      double height = Math.sqrt(Math.pow(top_right.x - bottom_right.x, 2) + Math.pow(top_right.y - bottom_right.y, 2));
+            if (approx.total() == 4) {
 
-                      // Create destination points for perspective transform
-                      MatOfPoint2f dst_pts = new MatOfPoint2f(
-                              new  org.opencv.core.Point(0, 0),
-                              new  org.opencv.core.Point(width, 0),
-                              new  org.opencv.core.Point(width, height),
-                              new  org.opencv.core.Point(0, height));
+                org.opencv.core.Point[] cornersArray = approx.toArray();
+                org.opencv.core.Point top_left = cornersArray[0];
+                org.opencv.core.Point top_right = cornersArray[1];
+                org.opencv.core.Point bottom_right = cornersArray[2];
+                org.opencv.core.Point bottom_left = cornersArray[3];
+                Log.i(TAG,"top_left"+destination+":"+String.valueOf(top_left.x)+","+String.valueOf(top_left.y));
+                Log.i(TAG,"top_right"+destination+":"+String.valueOf(top_right.x)+","+String.valueOf(top_right.y));
+                Log.i(TAG,"bottom_left"+destination+":"+String.valueOf(bottom_left.x)+","+String.valueOf(bottom_left.y));
+                Log.i(TAG,"bottom_right"+destination+":"+String.valueOf(bottom_right.x)+","+String.valueOf(bottom_right.y));
+                // Determine the width and height of the detected rectangle
+                double width = Math.sqrt(Math.pow(top_right.x - top_left.x, 2) + Math.pow(top_right.y - top_left.y, 2));
+                double height = Math.sqrt(Math.pow(top_right.x - bottom_right.x, 2) + Math.pow(top_right.y - bottom_right.y, 2));
+                double contour_area=width*height;
+                if (isArucoInsideRectangle(arucoCornersArray, cornersArray) &&  contour_area>2*aruco_area) {
+                    //draw contour of paper outline
+                    Mat imageContours = image.clone();
+                    List<MatOfPoint> contourList1 = new ArrayList<>();
+                    contourList1.add(new MatOfPoint(approx.toArray())); // Convert back to MatOfPoint
+                    Imgproc.drawContours(imageContours, contourList1, -1, new Scalar(0, 255, 0), 3);
+                    api.saveMatImage(imageContours, "paper_outline"+destination+".png");
 
-                      // Get the perspective transform matrix
-                      Mat M = Imgproc.getPerspectiveTransform(approx, dst_pts);
+                    String paper_width_height="Paper dimension"+destination+"(wxh):"+width+","+height;
+                    Log.i(TAG, paper_width_height);
 
-                      // Apply the perspective transformation to get the top-down view
-                      Mat warped = new Mat();
-                      Imgproc.warpPerspective(image, warped, M, new org.opencv.core.Size(width, height));
+                    // Create destination points for perspective transform
+                    MatOfPoint2f dst_pts = new MatOfPoint2f(
+                            new org.opencv.core.Point(0, 0),
+                            new org.opencv.core.Point(width, 0),
+                            new org.opencv.core.Point(width, height),
+                            new org.opencv.core.Point(0, height));
 
-                      if (width < height) {
-                          Core.rotate(warped, warped, Core.ROTATE_90_CLOCKWISE);
-                          found = true;
-                      }
-                      break;
-                  }
-              }
+                    // Get the perspective transform matrix
+                    Mat M = Imgproc.getPerspectiveTransform(approx, dst_pts);
+                    Imgproc.warpPerspective(image, warped, M, new org.opencv.core.Size(width, height));
+                    if (width < height) {
+                        Core.rotate(warped, warped, Core.ROTATE_90_CLOCKWISE);
+                            }
+                   // warped=extractPaperImage(image,cornersArray);
+                    found = true;
+                    break;
+                }
+            }
+        }
 
-              if (!found && arucoCorners != null) {
-                  org.opencv.core.Point[] corners1 = arucoCorners.toArray();
-                  org.opencv.core.Point top_left = corners1[0];
-                  org.opencv.core.Point top_right = corners1[1];
-                  org.opencv.core.Point bottom_right = corners1[2];
-                  org.opencv.core.Point bottom_left = corners1[3];
-
-                  double k1 = 5;
-                  double k2 = 2;
-                  double k3 = 0.5;
-
-                  org.opencv.core.Point top_left1 = new org.opencv.core.Point(top_left.x + k1 * (top_left.x - top_right.x) + k3 * (top_left.x - bottom_left.x), top_left.y + k1 * (top_left.y - top_right.y) + k3 * (top_left.y - bottom_left.y));
-                  org.opencv.core.Point bottom_right1 = new org.opencv.core.Point(bottom_right.x + k2 * (bottom_right.x - top_right.x), bottom_right.y + k2 * (bottom_right.y - top_right.y));
-                  org.opencv.core.Point bottom_left1 = new org.opencv.core.Point(bottom_right1.x + k1 * (top_left.x - top_right.x), bottom_right1.y + k1 * (top_left.y - top_right.y));
-                  org.opencv.core.Point top_right1 = top_right;
-
-                  MatOfPoint2f new_corners = new MatOfPoint2f(top_left1, top_right1, bottom_right1, bottom_left1);
-                  double width1 = Math.sqrt(Math.pow(top_right1.x - top_left1.x, 2) + Math.pow(top_right1.y - top_left1.y, 2));
-                  double height1 = Math.sqrt(Math.pow(top_right1.x - bottom_right1.x, 2) + Math.pow(top_right1.y - bottom_right1.y,2));
-                  // Create destination points for perspective transform
-                   MatOfPoint2f dst_pts1 = new MatOfPoint2f(
-                                  new  org.opencv.core.Point(0, 0),
-                                  new  org.opencv.core.Point(width1, 0),
-                                  new  org.opencv.core.Point(width1, height1),
-                                  new  org.opencv.core.Point(0, height1));
-
-                  // Get the perspective transform matrix
-                  Mat M1 = Imgproc.getPerspectiveTransform(new_corners, dst_pts1);
-                  // Apply the perspective transformation to get the top-down view
-                  Mat warped = new Mat();
-                  Imgproc.warpPerspective(image, warped, M1, new org.opencv.core.Size(width1, height1));
-                  api.saveMatImage(warped, "warped.png");
-                  int bestIndex=0;
-                      int binaryThreshold = 150;
-                      double minAreaThreshold = 10;
-                      Mat main_thresh = new Mat();
-                      Imgproc.threshold(warped, main_thresh, binaryThreshold, 255, Imgproc.THRESH_BINARY);
-
-                      Mat mainEdges = new Mat();
-                      Imgproc.Canny(main_thresh, mainEdges, 50, 200);
-
-                      List<MatOfPoint> contoursMain = new ArrayList<>();
-                      Mat hierarchy1 = new Mat();
-                      Imgproc.findContours(mainEdges, contoursMain, hierarchy1, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE);
-
-                      List<MatOfPoint> filteredMergedContours = new ArrayList<>();
-                      List<MatOfPoint> mergedContours = mergeContours(contoursMain, 10);
-                      for (MatOfPoint main_contour : mergedContours) {
-                          Log.i(TAG, "LOOPING THROUGH MERGED CONTOURS, STARTING FILTER");
-                          if (Imgproc.contourArea(main_contour) >= minAreaThreshold) {
-                              filteredMergedContours.add(main_contour);
-                          }
-                      }
-                      numObjects = filteredMergedContours.size() - 2;
-                      Log.i(TAG, "Number of objects: " + numObjects);
-                      // Initialize ORB detector
-                      ORB orb = ORB.create();
-
-                      // Use BFMatcher to find matches between descriptors
-                      BFMatcher bf = BFMatcher.create(DescriptorMatcher.BRUTEFORCE_HAMMING, true);
-
-                      String bestTemplatePath = null;
-                      MatOfDMatch bestMatches = null;
-                      int bestNumGoodMatches = 0;
-                      int goodMatchThreshold = 65;
-                      int index=0;
-                      for (Integer templatePath : templatePaths) {
-                          Log.i(TAG, "LOOPING THROUGH TEMPLATE PATHS");
-                          Bitmap templateBitmap = BitmapFactory.decodeResource(getResources(), templatePath);
-                          Mat template = new Mat();
-                          Utils.bitmapToMat(templateBitmap, template);
-                          Mat grayTemplate = new Mat();
-                          Imgproc.cvtColor(template, grayTemplate, Imgproc.COLOR_BGR2GRAY);
-                          Mat templateThresh= new Mat();
-                          Imgproc.threshold(grayTemplate, templateThresh, binaryThreshold, 255, Imgproc.THRESH_BINARY);
-                          MatOfDMatch matches = matchTemplate(main_thresh, templateThresh, orb, bf);
-                          List<MatOfDMatch> matchesList = new ArrayList<>();
-                          matchesList.add(matches);
-                          List<DMatch> goodMatches = new ArrayList<>();
-                          for (DMatch match : matches.toList()) {
-                              Log.i(TAG, "LOOPING THROUGH MATCHES, LOOKING FOR GOOD MATCHES"+String.valueOf(match.distance));
-                              if (match.distance < goodMatchThreshold) {
-                                  Log.i(TAG, "ADDING GOOD MATCHES");
-                                  goodMatches.add(match);
-                              }
-                          }
-
-                          int numGoodMatches = goodMatches.size();
-                          if (numGoodMatches > bestNumGoodMatches) {
-                              Log.i(TAG, "NUM MATCHES BETTER THAN BEST MATCHES, OVERRIDING");
-                              bestNumGoodMatches = numGoodMatches;
-                              //bestTemplatePath = (templatePath);
-                              bestMatches = new MatOfDMatch();
-                              bestMatches.fromList(goodMatches);
-                              bestIndex = index;
-                          }
-                          index++;
-
-                      }
-                      Log.i(TAG, "bestIndex: " + bestIndex);
-
-                      return classNames[bestIndex];
+        if (!found && !arucoCorners.empty()) {
 
 
-                  }
+            org.opencv.core.Point[] corners1 = arucoCorners.toArray();
+            org.opencv.core.Point top_left = corners1[0];
+            org.opencv.core.Point top_right = corners1[1];
+            org.opencv.core.Point bottom_right = corners1[2];
+            org.opencv.core.Point bottom_left = corners1[3];
+
+            double k1 = 5;
+            double k2 = 2;
+            double k3 = 0.5;
+
+            org.opencv.core.Point top_left1 = new org.opencv.core.Point(top_left.x + k1 * (top_left.x - top_right.x) + k3 * (top_left.x - bottom_left.x), top_left.y + k1 * (top_left.y - top_right.y) + k3 * (top_left.y - bottom_left.y));
+            org.opencv.core.Point bottom_right1 = new org.opencv.core.Point(bottom_right.x + k2 * (bottom_right.x - top_right.x), bottom_right.y + k2 * (bottom_right.y - top_right.y));
+            org.opencv.core.Point bottom_left1 = new org.opencv.core.Point(bottom_right1.x + k1 * (top_left.x - top_right.x), bottom_right1.y + k1 * (top_left.y - top_right.y));
+            org.opencv.core.Point top_right1 = top_right;
+
+            MatOfPoint2f new_corners = new MatOfPoint2f(top_left1, top_right1, bottom_right1, bottom_left1);
+            double width1 = Math.sqrt(Math.pow(top_right1.x - top_left1.x, 2) + Math.pow(top_right1.y - top_left1.y, 2));
+            double height1 = Math.sqrt(Math.pow(top_right1.x - bottom_right1.x, 2) + Math.pow(top_right1.y - bottom_right1.y, 2));
+            // Create destination points for perspective transform
+            MatOfPoint2f dst_pts1 = new MatOfPoint2f(
+                    new org.opencv.core.Point(0, 0),
+                    new org.opencv.core.Point(width1, 0),
+                    new org.opencv.core.Point(width1, height1),
+                    new org.opencv.core.Point(0, height1));
+
+            // Get the perspective transform matrix
+            Mat M1 = Imgproc.getPerspectiveTransform(new_corners, dst_pts1);
+            Imgproc.warpPerspective(image, warped, M1, new org.opencv.core.Size(width1, height1));
+            if (width1 < height1) {
+                Core.rotate(warped, warped, Core.ROTATE_90_CLOCKWISE);
+            }
+//            corners1[0]=top_left1;
+//            corners1[1]=top_right1;
+//            corners1[2]=bottom_right1;
+//            corners1[3]=bottom_left1;
+//
+//            warped=extractPaperImage(image,corners1);
+        }
+
+        Log.i(TAG, "image channel:" + warped.channels());
+        String warped_image = "warped" + destination + ".png";
+        api.saveMatImage(warped, warped_image);
+        int bestIndex = 0;
+        int binaryThreshold = 150;
+        double minAreaThreshold = 10;
+        Mat main_thresh = new Mat();
+
+        Mat graywarped=new Mat();
+        Imgproc.cvtColor(warped, graywarped, Imgproc.COLOR_BGR2GRAY);
+
+        Imgproc.threshold(graywarped, main_thresh, binaryThreshold, 255, Imgproc.THRESH_BINARY);
+
+        Mat mainEdges = new Mat();
+        Imgproc.Canny(main_thresh, mainEdges, 50, 200);
+
+        List<MatOfPoint> contoursMain = new ArrayList<>();
+        Mat hierarchy1 = new Mat();
+        Imgproc.findContours(mainEdges, contoursMain, hierarchy1, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE);
+
+        List<MatOfPoint> filteredMergedContours = new ArrayList<>();
+        List<MatOfPoint> mergedContours = mergeContours(contoursMain, 10);
+        for (MatOfPoint main_contour : mergedContours) {
+            Log.i(TAG, "LOOPING THROUGH MERGED CONTOURS, STARTING FILTER");
+            if (Imgproc.contourArea(main_contour) >= minAreaThreshold) {
+                filteredMergedContours.add(main_contour);
+            }
+        }
+        numObjects = filteredMergedContours.size() - 2;
+        Log.i(TAG, "Number of objects: " + numObjects);
+
+        // classify image base on  ORB /hog detector
+        // Initialize HOG descriptor
 
 
-        return null;
-    };
+
+        ORB orb = ORB.create();
+
+        // Use BFMatcher to find matches between descriptors
+        BFMatcher bf = BFMatcher.create(DescriptorMatcher.BRUTEFORCE_HAMMING, true);
+        String bestTemplatePath = null;
+        MatOfDMatch bestMatches = null;
+        int bestNumGoodMatches = 0;
+        int goodMatchThreshold = 500;//original=65
+        int index = 0;
+
+        for (Integer templatePath : templatePaths) {
+            Log.i(TAG, "LOOPING THROUGH TEMPLATE PATHS");
+            Bitmap templateBitmap = BitmapFactory.decodeResource(getResources(), templatePath);
+            Mat template = new Mat();
+            Utils.bitmapToMat(templateBitmap, template);
+            Imgproc.cvtColor(template, template, Imgproc.COLOR_RGBA2RGB);
+            Log.i(TAG, "template_image channel:" + template.channels());
+            Mat grayTemplate = new Mat();
+            Imgproc.cvtColor(template, grayTemplate, Imgproc.COLOR_BGR2GRAY);
+
+            Mat templateThresh = new Mat();
+            //Imgproc.threshold(grayTemplate, templateThresh, binaryThreshold, 255, Imgproc.THRESH_BINARY);
+            //MatOfDMatch matches = matchTemplate(main_thresh, templateThresh, orb, bf);
+            MatOfDMatch matches = matchTemplate(graywarped,grayTemplate, orb, bf);
+
+            List<MatOfDMatch> matchesList = new ArrayList<>();
+            matchesList.add(matches);
+            List<DMatch> goodMatches = new ArrayList<>();
+            for (DMatch match : matches.toList()) {
+                Log.i(TAG, "LOOPING THROUGH MATCHES, LOOKING FOR GOOD MATCHES:" + String.valueOf(match.distance));
+                if (match.distance < goodMatchThreshold) {
+                    Log.i(TAG, "ADDING GOOD MATCHES");
+                    goodMatches.add(match);
+                }
+
+            }
+
+            int numGoodMatches = goodMatches.size();
+            if (numGoodMatches > bestNumGoodMatches) {
+                Log.i(TAG, "NUM MATCHES BETTER THAN BEST MATCHES, OVERRIDING");
+                bestNumGoodMatches = numGoodMatches;
+                //bestTemplatePath = (templatePath);
+                bestMatches = new MatOfDMatch();
+                bestMatches.fromList(goodMatches);
+                bestIndex = index;
+            }
+            index++;
+
+        }
+        Log.i(TAG, "bestIndex: " + bestIndex);
+
+        return classNames[bestIndex];
+
+    }
+}
 //    private MappedByteBuffer loadModelFile() throws IOException {
 //        AssetFileDescriptor fileDescriptor=this.getAssets().openFd("resnet.tflite");
 //        FileInputStream inputStream=new FileInputStream(fileDescriptor.getFileDescriptor());
@@ -1128,7 +1239,7 @@ public class YourService extends KiboRpcService {
 //        return classes[index];
 //    }
     
-}
+
 
 
 

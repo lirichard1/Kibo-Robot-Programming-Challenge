@@ -61,6 +61,16 @@ public class YourService extends KiboRpcService {
     //String[] classNames = {"beaker", "goggle", "hammer", "kapton-tape", "pipette", "screwdriver", "thermometer", "top", "watch", "wrench"};
     int numObjects = 0;
 
+    public void goToPoint(Point point, Quaternion quaternion) {
+        Result result = api.moveTo(point, quaternion, true);
+        int loopCounter = 0;
+        final int LOOP_MAX = 5;
+        while (!result.hasSucceeded() && loopCounter < LOOP_MAX) {
+            result = api.moveTo(point, quaternion, true);
+            ++loopCounter;
+        }
+    }
+
     @Override
     protected void runPlan1() {
 
@@ -121,12 +131,13 @@ public class YourService extends KiboRpcService {
 
 
         try {
-            result = api.moveTo(point, quaternion, true);
-            while (!result.hasSucceeded() && loopCounter < LOOP_MAX) {
-                result = api.moveTo(point, quaternion, true);
-                ++loopCounter;
-
-            }
+//            result = api.moveTo(point, quaternion, true);
+//            while (!result.hasSucceeded() && loopCounter < LOOP_MAX) {
+//                result = api.moveTo(point, quaternion, true);
+//                ++loopCounter;
+//
+//            }
+            goToPoint(point, quaternion);
             api.flashlightControlFront(0.01f);
             Thread.sleep(2000);
 
@@ -192,19 +203,21 @@ public class YourService extends KiboRpcService {
 //            api.moveTo(point, quaternion, true);
 
 
-            result = api.moveTo(point1, quaternion, true);
-            while (!result.hasSucceeded() && loopCounter < LOOP_MAX) {
-                result = api.moveTo(point1, quaternion, true);
-                ++loopCounter;
+//            result = api.moveTo(point1, quaternion, true);
+//            while (!result.hasSucceeded() && loopCounter < LOOP_MAX) {
+//                result = api.moveTo(point1, quaternion, true);
+//                ++loopCounter;
+//            }
+            goToPoint(point1, quaternion);
 
-            }
+//            result = api.moveTo(point2, quaternion1, true);
+//            while (!result.hasSucceeded() && loopCounter < LOOP_MAX) {
+//                result = api.moveTo(point2, quaternion1, true);
+//                ++loopCounter;
+//
+//            }
+            goToPoint(point2, quaternion1);
 
-            result = api.moveTo(point2, quaternion1, true);
-            while (!result.hasSucceeded() && loopCounter < LOOP_MAX) {
-                result = api.moveTo(point2, quaternion1, true);
-                ++loopCounter;
-
-            }
             api.flashlightControlFront(0.5f);
             Thread.sleep(2000);
             Mat image1 = api.getMatNavCam();
@@ -243,11 +256,12 @@ public class YourService extends KiboRpcService {
                 api.setAreaInfo(2, pred1, 4);
             }
 
-            result = api.moveTo(point4, quaternion1, true);
-            while (!result.hasSucceeded() && loopCounter < LOOP_MAX) {
-                result = api.moveTo(point4, quaternion1, true);
-                ++loopCounter;
-            }
+//            result = api.moveTo(point4, quaternion1, true);
+//            while (!result.hasSucceeded() && loopCounter < LOOP_MAX) {
+//                result = api.moveTo(point4, quaternion1, true);
+//                ++loopCounter;
+//            }
+            goToPoint(point4, quaternion1);
             api.flashlightControlFront(0.5f);
             Thread.sleep(2000);
             Mat image2 = api.getMatNavCam();
@@ -288,26 +302,21 @@ public class YourService extends KiboRpcService {
             }
 
 
-            result = api.moveTo(point5, quaternion1, true);
-            while (!result.hasSucceeded() && loopCounter < LOOP_MAX) {
-                result = api.moveTo(point5, quaternion1, true);
-                ++loopCounter;
+//            result = api.moveTo(point5, quaternion1, true);
+//            while (!result.hasSucceeded() && loopCounter < LOOP_MAX) {
+//                result = api.moveTo(point5, quaternion1, true);
+//                ++loopCounter;
+//
+//            }
+            goToPoint(point5, quaternion1);
 
-            }
-
-            result = api.moveTo(point6, quaternion2, true);
-            while (!result.hasSucceeded() && loopCounter < LOOP_MAX) {
-                result = api.moveTo(point6, quaternion2, true);
-                ++loopCounter;
-
-            }
-
-
-
-
-
-
-
+//            result = api.moveTo(point6, quaternion2, true);
+//            while (!result.hasSucceeded() && loopCounter < LOOP_MAX) {
+//                result = api.moveTo(point6, quaternion2, true);
+//                ++loopCounter;
+//
+//            }
+            goToPoint(point6, quaternion2);
 
 
             api.flashlightControlFront(0.5f);
@@ -348,12 +357,13 @@ public class YourService extends KiboRpcService {
                 api.setAreaInfo(4, pred3, 4);
             }
 
-            result = api.moveTo(astronaut, quaternion3, true);
-            while (!result.hasSucceeded() && loopCounter < LOOP_MAX) {
-                result = api.moveTo(astronaut, quaternion3, true);
-                ++loopCounter;
-
-            }
+//            result = api.moveTo(astronaut, quaternion3, true);
+//            while (!result.hasSucceeded() && loopCounter < LOOP_MAX) {
+//                result = api.moveTo(astronaut, quaternion3, true);
+//                ++loopCounter;
+//
+//            }
+            goToPoint(astronaut, quaternion3);
 
             api.reportRoundingCompletion();
 
@@ -378,42 +388,57 @@ public class YourService extends KiboRpcService {
             Log.i("ROT", "targetClass:"+targetClass);
             Log.i("ROT", "Predictions Array is");
             Log.i("ROT", TextUtils.join(", ", predictions));
-
+            int found_target=0;
             for (int i = 0; i < predictions.size(); i++) {
                 if (predictions.get(i).equals(targetClass)) {
                     Log.i("ROT", "Going to target at" + String.valueOf(i));
                     if (i == 0) {
-                        api.moveTo(point5, quaternion, true);
-                        api.moveTo(point4, quaternion, true);
-                        api.moveTo(point2, quaternion, true);
-                        api.moveTo(point1, quaternion, true);
-                        api.moveTo(point, quaternion, true);
+//                        api.moveTo(point5, quaternion, true);
+//                        api.moveTo(point4, quaternion, true);
+//                        api.moveTo(point2, quaternion, true);
+//                        api.moveTo(point1, quaternion, true);
+//                        api.moveTo(point, quaternion, true);
+                        goToPoint(point5, quaternion);
+                        goToPoint(point4, quaternion);
+                        goToPoint(point2, quaternion);
+                        goToPoint(point1, quaternion);
+                        goToPoint(point, quaternion);
                         api.saveMatImage(api.getMatNavCam(), "final_image.png");
                         api.takeTargetItemSnapshot();
                     } else if (i == 1) {
-                        api.moveTo(point5, quaternion1, true);
-                        api.moveTo(point4, quaternion1, true);
-                        api.moveTo(point2, quaternion1, true);
+//                        api.moveTo(point5, quaternion1, true);
+//                        api.moveTo(point4, quaternion1, true);
+//                        api.moveTo(point2, quaternion1, true);
+                        goToPoint(point5, quaternion1);
+                        goToPoint(point4, quaternion1);
+                        goToPoint(point2, quaternion1);
                         api.saveMatImage(api.getMatNavCam(), "final_image.png");
                         api.takeTargetItemSnapshot();
                     } else if (i == 2) {
-                        api.moveTo(point5, quaternion2, true);
-                        api.moveTo(point4, quaternion2, true);
+//                        api.moveTo(point5, quaternion2, true);
+//                        api.moveTo(point4, quaternion2, true);
+                        goToPoint(point5, quaternion1);
+                        goToPoint(point4, quaternion1);
                         api.saveMatImage(api.getMatNavCam(), "final_image.png");
                         api.takeTargetItemSnapshot();
                     } else if (i == 3) {
-                        api.moveTo(point6, quaternion2, true);
-                        api.saveMatImage(api.getMatNavCam(), "final_image.png");
-                        api.takeTargetItemSnapshot();
-                    } else {
-                        // go to 3 (since that is most common)
-                        api.moveTo(point5, quaternion2, true);
-                        api.moveTo(point4, quaternion2, true);
+                        //api.moveTo(point6, quaternion2, true);
+                        goToPoint(point6, quaternion2);
                         api.saveMatImage(api.getMatNavCam(), "final_image.png");
                         api.takeTargetItemSnapshot();
                     }
                 }
             }
+            if(found_target==0){
+                    // go to 3 (since that is most common)
+                    //api.moveTo(point5, quaternion2, true);
+                    //api.moveTo(point4, quaternion2, true);
+                    goToPoint(point5, quaternion1);
+                    goToPoint(point4, quaternion1);
+                    api.saveMatImage(api.getMatNavCam(), "final_image.png");
+                    api.takeTargetItemSnapshot();
+                }
+
 
 
         } catch (Exception e) {
@@ -707,6 +732,7 @@ public class YourService extends KiboRpcService {
 //        return numObjects;
 //    }
 //
+
 
     public static List<MatOfPoint> mergeContours(List<MatOfPoint> contours, int proximityThreshold) {
         // Calculate bounding rectangles for all contours
@@ -1088,6 +1114,12 @@ public class YourService extends KiboRpcService {
         }
 
         numObjects-=1;
+
+        if (numObjects <= 0) {
+            numObjects = 1;
+            Log.i(TAG, "Unable to find objects, guessing 1!");
+        }
+
         Log.i(TAG, "Number of objects: " + numObjects);
 
         // classify image base on  ORB /hog detector

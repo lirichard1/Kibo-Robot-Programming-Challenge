@@ -57,7 +57,8 @@ public class OpenCVModel {
                 resized,
                 1 / 255.0, // scalefactor
                 size, // size
-                new Scalar(0.7653 * 255.0, 0.7653 * 255.0, 0.7653 * 255.0), // mean
+                //new Scalar(0.7653 * 255.0, 0.7653 * 255.0, 0.7653 * 255.0), // mean
+                new Scalar(0.7726 * 255.0, 0.7726 * 255.0, 0.7726 * 255.0),
                 false, // swaprb
                 false, //crop
                 CvType.CV_32F
@@ -65,7 +66,7 @@ public class OpenCVModel {
 
         // Divide by standard dev
         Mat normed = new Mat();
-        Core.divide(blob, Scalar.all(0.3056), normed);
+        Core.divide(blob, Scalar.all(0.3092), normed);
 
         // Load the ONNX Model
         Log.i("ROT", "Done preprocessing :)");

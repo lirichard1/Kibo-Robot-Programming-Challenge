@@ -247,7 +247,6 @@ public class YourService extends KiboRpcService {
             while (!result.hasSucceeded() && loopCounter < LOOP_MAX) {
                 result = api.moveTo(point4, quaternion1, true);
                 ++loopCounter;
-
             }
             api.flashlightControlFront(0.5f);
             Thread.sleep(2000);
@@ -303,18 +302,8 @@ public class YourService extends KiboRpcService {
 
             }
 
-            api.flashlightControlFront(0.5f);
-            Thread.sleep(2000);
-            Mat target_item = api.getMatNavCam();
-            api.flashlightControlFront(0.0f);
-            if (target_item == null) {
-                while (target_item == null && imgRetries < img_MAX) {
-                    api.flashlightControlFront(0.05f);
-                    Thread.sleep(2000);
-                    target_item = api.getMatNavCam();
-                    api.flashlightControlFront(0.0f);
-                    imgRetries++;
-                }
+
+
 
 
 
@@ -399,21 +388,28 @@ public class YourService extends KiboRpcService {
                         api.moveTo(point2, quaternion, true);
                         api.moveTo(point1, quaternion, true);
                         api.moveTo(point, quaternion, true);
+                        api.saveMatImage(api.getMatNavCam(), "final_image.png");
                         api.takeTargetItemSnapshot();
-                    }
-                    if (i == 1) {
+                    } else if (i == 1) {
                         api.moveTo(point5, quaternion1, true);
                         api.moveTo(point4, quaternion1, true);
                         api.moveTo(point2, quaternion1, true);
+                        api.saveMatImage(api.getMatNavCam(), "final_image.png");
                         api.takeTargetItemSnapshot();
-                    }
-                    if (i == 2) {
+                    } else if (i == 2) {
                         api.moveTo(point5, quaternion2, true);
                         api.moveTo(point4, quaternion2, true);
+                        api.saveMatImage(api.getMatNavCam(), "final_image.png");
                         api.takeTargetItemSnapshot();
-                    }
-                    if (i == 3) {
+                    } else if (i == 3) {
                         api.moveTo(point6, quaternion2, true);
+                        api.saveMatImage(api.getMatNavCam(), "final_image.png");
+                        api.takeTargetItemSnapshot();
+                    } else {
+                        // go to 3 (since that is most common)
+                        api.moveTo(point5, quaternion2, true);
+                        api.moveTo(point4, quaternion2, true);
+                        api.saveMatImage(api.getMatNavCam(), "final_image.png");
                         api.takeTargetItemSnapshot();
                     }
                 }

@@ -2,6 +2,9 @@ package jp.jaxa.iss.kibo.rpc.defaultapk;
 
 import jp.jaxa.iss.kibo.rpc.api.KiboRpcService;
 
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 
 import gov.nasa.arc.astrobee.Result;
@@ -36,7 +39,10 @@ import org.opencv.features2d.BFMatcher;
 import org.opencv.features2d.DescriptorMatcher;
 import org.opencv.features2d.ORB;
 import org.opencv.imgproc.Imgproc;
+import org.opencv.calib3d.Calib3d;
 
+
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
@@ -45,10 +51,29 @@ import org.opencv.core.MatOfFloat;
 import org.opencv.objdetect.HOGDescriptor;
 import org.opencv.objdetect.Objdetect;
 
+import org.opencv.core.CvType;
+import org.opencv.core.Mat;
+import org.opencv.core.CvException;
+import org.opencv.android.OpenCVLoader;
+import org.opencv.ml.SVM;
+
+import org.opencv.android.OpenCVLoader;
+import org.opencv.core.CvType;
+import org.opencv.core.Mat;
+import org.opencv.core.MatOfPoint;
+//import org.opencv.core.Moments;
+import org.opencv.imgproc.Imgproc;
+import java.io.File;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Class meant to handle commands from the Ground Data System and execute them in Astrobee
  */
+
 
 public class YourService extends KiboRpcService {
     final String
@@ -60,7 +85,8 @@ public class YourService extends KiboRpcService {
 
     //String[] classNames = {"beaker", "goggle", "hammer", "kapton-tape", "pipette", "screwdriver", "thermometer", "top", "watch", "wrench"};
     int numObjects = 0;
-
+    double cx=0;
+    double cz =0;
     public void goToPoint(Point point, Quaternion quaternion) {
         Result result = api.moveTo(point, quaternion, true);
         int loopCounter = 0;
@@ -69,6 +95,8 @@ public class YourService extends KiboRpcService {
             result = api.moveTo(point, quaternion, true);
             ++loopCounter;
         }
+
+
     }
 
     @Override
@@ -82,14 +110,22 @@ public class YourService extends KiboRpcService {
         int imgRetries = 0;
 
         //ModelInterpreter modelInterpreter = new ModelInterpreter(this);
-
+        //
+            //old kibo rpc points
+        //
         Point point = new Point(11.029d, -9.98828d, 5.2817d);
-        Point point1 = new Point(11.343d, -9.2814d, 5.3594d);
-        Point point2 = new Point(10.974d, -8.8799d, 4.6309d);
-        //Point point3 = new Point(11.303d, -8.7276d, 4.5397d);
-        Point point4 = new Point(10.924d, -7.9268d, 4.5397d);
-        Point point5 = new Point(10.563d, -7.4084d, 4.5397d);
-        Point point6 = new Point(10.557d, -6.8833d, 4.8351d);
+//        Point point1 = new Point(11.343d, -9.2814d, 5.3594d);
+        Point point1 = new Point(10.974d, -8.8799d, 4.6309d);
+//        //Point point3 = new Point(11.303d, -8.7276d, 4.5397d);
+        Point point2 = new Point(10.924d, -7.9268d, 4.5397d);
+//        Point point5 = new Point(10.563d, -7.4084d, 4.5397d);
+        Point point3 = new Point(10.557d, -6.8833d, 4.8351d);
+
+//        Point point = new Point(11.026d, -9.564d, 4.8945);
+//        Point point1 = new Point(11.178d, -8.9585d, 5.3901d);
+//        Point point2 = new Point(10.81d, -7.9477d, 5.3935d);
+//        Point point3 = new Point(11.367d, -6.8833d, 4.8593d);
+
 
         Point astronaut = new Point(11.143d, -6.7607d, 4.9654d);
 
@@ -127,7 +163,7 @@ public class YourService extends KiboRpcService {
         templatePaths.add(R.drawable.wrench_template);
 
 
-        ArrayList<String> predictions = new ArrayList<String>();
+        ArrayList<String[]> predictions = new ArrayList<String[]>();
 
 
         try {
@@ -138,6 +174,7 @@ public class YourService extends KiboRpcService {
 //
 //            }
             goToPoint(point, quaternion);
+
             api.flashlightControlFront(0.01f);
             Thread.sleep(2000);
 
@@ -169,21 +206,29 @@ public class YourService extends KiboRpcService {
 //            Log.i(TAG, joined);
             int destination = 0;
             Log.i(TAG, "ABOUT TO DO PREDICTIONS");
-            String pred = processImage(image, templatePaths, destination);
+            PredictionResult predictionResult = processImage(image, templatePaths, destination);
+            String[] strPreds = predictionResult.getLabels();
             Log.i(TAG, "FINISHED IMAGE RECOGNITION, START COUNT OBJECTS");
             Log.i(TAG, "FINISHED COUNT OBJECTS");
 
-            if (pred != null) {
-                api.setAreaInfo(1, pred);
-                predictions.add(pred);
+            if (predictionResult != null) {
+                predictions.add(strPreds);
+                api.saveMatImage(predictionResult.getOriginalBlob(), "original_inference.png");
+                api.saveMatImage(predictionResult.getBlob(), "inference.png");
             } else {
                 Log.i(TAG, "Prediction is null for area 1, guessing");
                 api.setAreaInfo(1, "Beaker", 1);
             }
             if (numObjects > 0) {
-                api.setAreaInfo(1, pred, numObjects);
+                for (int i = 0;i<strPreds.length;i++) {
+                    api.setAreaInfo(1, strPreds[i], numObjects);
+
+                }
             }else {
-                api.setAreaInfo(1, pred, 4);
+                for (int i = 0;i<strPreds.length;i++) {
+                    api.setAreaInfo(1, strPreds[i], 2);
+
+                }
             }
 
 //            shiftXLeftRight(point, quaternion, increment);
@@ -208,16 +253,7 @@ public class YourService extends KiboRpcService {
 //                result = api.moveTo(point1, quaternion, true);
 //                ++loopCounter;
 //            }
-            goToPoint(point1, quaternion);
-
-//            result = api.moveTo(point2, quaternion1, true);
-//            while (!result.hasSucceeded() && loopCounter < LOOP_MAX) {
-//                result = api.moveTo(point2, quaternion1, true);
-//                ++loopCounter;
-//
-//            }
-            goToPoint(point2, quaternion1);
-
+            goToPoint(point1, quaternion1);
             api.flashlightControlFront(0.5f);
             Thread.sleep(2000);
             Mat image1 = api.getMatNavCam();
@@ -239,29 +275,39 @@ public class YourService extends KiboRpcService {
 
             //Log.i(TAG, "FINISHED ARUCO DETECT");
             //String joined1 = TextUtils.join(", ", corners1);
-            //Log.i(TAG, joined1);
+            //Log.i(TAG, joined1); done
             destination++;
-            String pred1 = processImage(image1, templatePaths, destination);
+            PredictionResult predictionResult1 = processImage(image1, templatePaths, destination);
+            String[] strPreds1 = predictionResult1.getLabels();
+            int numObjects1 = predictionResult1.getNumObjects();
             //int numObjects1 = countObjects(image1);
-            if (pred1 != null) {
-                api.setAreaInfo(2, pred1);
-                predictions.add(pred1);
+            if (predictionResult1 != null) {
+                api.saveMatImage(predictionResult1.getOriginalBlob(), "original_inference1.png");
+                api.saveMatImage(predictionResult1.getBlob(), "inference1.png");
+                predictions.add(strPreds1);
             } else {
                 Log.i(TAG, "Prediction is null for area 2, guessing");
                 api.setAreaInfo(2, "Beaker", 2);
             }
-            if (numObjects > 0) {
-                api.setAreaInfo(2, pred1, numObjects);
+            if (numObjects1 > 0) {
+                for (int i = 0;i<strPreds1.length;i++) {
+                    api.setAreaInfo(2, strPreds1[i], numObjects1);
+                }
             }else {
-                api.setAreaInfo(2, pred1, 4);
+                for (int i = 0;i<strPreds1.length;i++) {
+                    api.setAreaInfo(2, strPreds1[i], 4);
+                }
             }
-
-//            result = api.moveTo(point4, quaternion1, true);
+//            result = api.moveTo(point2, quaternion1, true);
 //            while (!result.hasSucceeded() && loopCounter < LOOP_MAX) {
-//                result = api.moveTo(point4, quaternion1, true);
+//                result = api.moveTo(point2, quaternion1, true);
 //                ++loopCounter;
+//
 //            }
-            goToPoint(point4, quaternion1);
+
+
+            goToPoint(point2, quaternion1);
+
             api.flashlightControlFront(0.5f);
             Thread.sleep(2000);
             Mat image2 = api.getMatNavCam();
@@ -279,45 +325,36 @@ public class YourService extends KiboRpcService {
                 api.saveMatImage(image2, "point_2.png");
             }
 
-            //ArrayList corners2 = arTagDetector.detect(image2);
+            //ArrayList corners1 = arTagDetector.detect(image1);
 
-//            Log.i(TAG, "FINISHED ARUCO DETECT");
-//            String joined2 = TextUtils.join(", ", corners2);
-//            Log.i(TAG, joined2);
+            //Log.i(TAG, "FINISHED ARUCO DETECT");
+            //String joined1 = TextUtils.join(", ", corners1);
+            //Log.i(TAG, joined1);
             destination++;
-            String pred2 = processImage(image2, templatePaths, destination);
-            //int numObjects2 = countObjects(image2);
-            if (pred2 != null) {
-                api.setAreaInfo(3, pred2);
-                predictions.add(pred2);
+            PredictionResult predictionResult2 = processImage(image2, templatePaths, destination);
+            String[] strPreds2 = predictionResult2.getLabels();
+            int numObjects2 = predictionResult2.getNumObjects();
+            //int numObjects1 = countObjects(image1);
+            if (predictionResult2 != null) {
+                api.saveMatImage(predictionResult2.getOriginalBlob(), "original_inference2.png");
+                api.saveMatImage(predictionResult2.getBlob(), "inference2.png");
+                predictions.add(strPreds2);
             } else {
                 Log.i(TAG, "Prediction is null for area 2, guessing");
-                api.setAreaInfo(3, "Beaker", 3);
+                api.setAreaInfo(3, "Beaker", 2);
             }
-            if (numObjects > 0) {
-                api.setAreaInfo(3, pred2, numObjects);
-            } else
-            {
-                api.setAreaInfo(3, pred2, 4);
+            if (numObjects2 > 0) {
+                for (int i = 0;i<strPreds2.length;i++) {
+                    api.setAreaInfo(3, strPreds1[i], numObjects2);
+                }
+            }else {
+                for (int i = 0;i<strPreds2.length;i++) {
+                    api.setAreaInfo(3, strPreds2[i], 4);
+                }
             }
 
 
-//            result = api.moveTo(point5, quaternion1, true);
-//            while (!result.hasSucceeded() && loopCounter < LOOP_MAX) {
-//                result = api.moveTo(point5, quaternion1, true);
-//                ++loopCounter;
-//
-//            }
-            goToPoint(point5, quaternion1);
-
-//            result = api.moveTo(point6, quaternion2, true);
-//            while (!result.hasSucceeded() && loopCounter < LOOP_MAX) {
-//                result = api.moveTo(point6, quaternion2, true);
-//                ++loopCounter;
-//
-//            }
-            goToPoint(point6, quaternion2);
-
+            goToPoint(point3, quaternion2);
 
             api.flashlightControlFront(0.5f);
             Thread.sleep(2000);
@@ -336,26 +373,133 @@ public class YourService extends KiboRpcService {
                 api.saveMatImage(image3, "point_3.png");
             }
 
-            //ArrayList corners3 = arTagDetector.detect(image3);
+            //ArrayList corners1 = arTagDetector.detect(image1);
 
-//            Log.i(TAG, "FINISHED ARUCO DETECT");
-//            String joined3 = TextUtils.join(", ", corners3);
-//            Log.i(TAG, joined3);
+            //Log.i(TAG, "FINISHED ARUCO DETECT");
+            //String joined1 = TextUtils.join(", ", corners1);
+            //Log.i(TAG, joined1);
             destination++;
-            String pred3 = processImage(image3, templatePaths, destination);
-            //int numObjects3 = countObjects(image3);
-            if (pred3 != null) {
-                api.setAreaInfo(4, pred3);
-                predictions.add(pred3);
+            PredictionResult predictionResult3 = processImage(image3, templatePaths, destination);
+            String[] strPreds3 = predictionResult3.getLabels();
+            int numObjects3 = predictionResult3.getNumObjects();
+            //int numObjects1 = countObjects(image1);
+            if (predictionResult3 != null) {
+                api.saveMatImage(predictionResult3.getOriginalBlob(), "original_inference3.png");
+                api.saveMatImage(predictionResult3.getBlob(), "inference3.png");
+                predictions.add(strPreds3);
             } else {
-                Log.i(TAG, "Prediction is null for area 4, guessing");
-                api.setAreaInfo(4, "Beaker", 1);
+                Log.i(TAG, "Prediction is null for area 2, guessing");
+                api.setAreaInfo(4, "Beaker", 2);
             }
-            if (numObjects > 0) {
-                api.setAreaInfo(4, pred3, numObjects);
+            if (numObjects3 > 0) {
+                for (int i = 0;i<strPreds3.length;i++) {
+                    api.setAreaInfo(4, strPreds3[i], numObjects3);
+                }
             }else {
-                api.setAreaInfo(4, pred3, 4);
+                for (int i = 0;i<strPreds3.length;i++) {
+                    api.setAreaInfo(4, strPreds3[i], 4);
+                }
             }
+//            result = api.moveTo(point4, quaternion1, true);
+//            while (!result.hasSucceeded() && loopCounter < LOOP_MAX) {
+//                result = api.moveTo(point4, quaternion1, true);
+//                ++loopCounter;
+//            }
+//            goToPoint(point4, quaternion1);
+//            api.flashlightControlFront(0.5f);
+//            Thread.sleep(2000);
+//            Mat image2 = api.getMatNavCam();
+//            api.flashlightControlFront(0.0f);
+//            if (image2 == null) {
+//                while (image2 == null && imgRetries < img_MAX) {
+//                    api.flashlightControlFront(0.05f);
+//                    Thread.sleep(2000);
+//                    image2 = api.getMatNavCam();
+//                    api.flashlightControlFront(0.0f);
+//                    imgRetries++;
+//                }
+//            } else {
+//
+//                api.saveMatImage(image2, "point_2.png");
+//            }
+//
+//            //ArrayList corners2 = arTagDetector.detect(image2);
+//
+////            Log.i(TAG, "FINISHED ARUCO DETECT");
+////            String joined2 = TextUtils.join(", ", corners2);
+////            Log.i(TAG, joined2);
+//            destination++;
+//            String pred2 = processImage(image2, templatePaths, destination);
+//            //int numObjects2 = countObjects(image2);
+//            if (pred2 != null) {
+//                api.setAreaInfo(3, pred2);
+//                predictions.add(pred2);
+//            } else {
+//                Log.i(TAG, "Prediction is null for area 2, guessing");
+//                api.setAreaInfo(3, "Beaker", 3);
+//            }
+//            if (numObjects > 0) {
+//                api.setAreaInfo(3, pred2, numObjects);
+//            } else
+//            {
+//                api.setAreaInfo(3, pred2, 4);
+//            }
+//
+//
+////            result = api.moveTo(point5, quaternion1, true);
+////            while (!result.hasSucceeded() && loopCounter < LOOP_MAX) {
+////                result = api.moveTo(point5, quaternion1, true);
+////                ++loopCounter;
+////
+////            }
+//            goToPoint(point5, quaternion1);
+//
+////            result = api.moveTo(point6, quaternion2, true);
+////            while (!result.hasSucceeded() && loopCounter < LOOP_MAX) {
+////                result = api.moveTo(point6, quaternion2, true);
+////                ++loopCounter;
+////
+////            }
+//            goToPoint(point6, quaternion2);
+//
+//
+//            api.flashlightControlFront(0.5f);
+//            Thread.sleep(2000);
+//            Mat image3 = api.getMatNavCam();
+//            api.flashlightControlFront(0.0f);
+//            if (image3 == null) {
+//                while (image3 == null && imgRetries < img_MAX) {
+//                    api.flashlightControlFront(0.05f);
+//                    Thread.sleep(2000);
+//                    image3 = api.getMatNavCam();
+//                    api.flashlightControlFront(0.0f);
+//                    imgRetries++;
+//                }
+//            } else {
+//
+//                api.saveMatImage(image3, "point_3.png");
+//            }
+//
+//            //ArrayList corners3 = arTagDetector.detect(image3);
+//
+////            Log.i(TAG, "FINISHED ARUCO DETECT");
+////            String joined3 = TextUtils.join(", ", corners3);
+////            Log.i(TAG, joined3);
+//            destination++;
+//            String pred3 = processImage(image3, templatePaths, destination);
+//            //int numObjects3 = countObjects(image3);
+//            if (pred3 != null) {
+//                api.setAreaInfo(4, pred3);
+//                predictions.add(pred3);
+//            } else {
+//                Log.i(TAG, "Prediction is null for area 4, guessing");
+//                api.setAreaInfo(4, "Beaker", 1);
+//            }
+//            if (numObjects > 0) {
+//                api.setAreaInfo(4, pred3, numObjects);
+//            }else {
+//                api.setAreaInfo(4, pred3, 4);
+//            }
 
 //            result = api.moveTo(astronaut, quaternion3, true);
 //            while (!result.hasSucceeded() && loopCounter < LOOP_MAX) {
@@ -383,58 +527,72 @@ public class YourService extends KiboRpcService {
                 api.saveMatImage(target_item, "target_item.png");
             }
             destination++;
-            String targetClass = processImage(target_item, templatePaths, destination);
+            PredictionResult targetResult = processImage(target_item, templatePaths, destination);
+            api.saveMatImage(targetResult.getOriginalBlob(), "original_inference_target.png");
+            api.saveMatImage(targetResult.getBlob(), "inference_target.png");
             api.notifyRecognitionItem();
-            Log.i("ROT", "targetClass:"+targetClass);
+            Log.i("ROT", "targetClass:"+ Arrays.toString(targetResult.getLabels()));
             Log.i("ROT", "Predictions Array is");
             Log.i("ROT", TextUtils.join(", ", predictions));
-            int found_target=0;
-            for (int i = 0; i < predictions.size(); i++) {
-                if (predictions.get(i).equals(targetClass)) {
-                    Log.i("ROT", "Going to target at" + String.valueOf(i));
-                    if (i == 0) {
-//                        api.moveTo(point5, quaternion, true);
-//                        api.moveTo(point4, quaternion, true);
-//                        api.moveTo(point2, quaternion, true);
-//                        api.moveTo(point1, quaternion, true);
-//                        api.moveTo(point, quaternion, true);
-                        goToPoint(point5, quaternion);
-                        goToPoint(point4, quaternion);
-                        goToPoint(point2, quaternion);
-                        goToPoint(point1, quaternion);
-                        goToPoint(point, quaternion);
-                        api.saveMatImage(api.getMatNavCam(), "final_image.png");
-                        api.takeTargetItemSnapshot();
-                    } else if (i == 1) {
-//                        api.moveTo(point5, quaternion1, true);
-//                        api.moveTo(point4, quaternion1, true);
-//                        api.moveTo(point2, quaternion1, true);
-                        goToPoint(point5, quaternion1);
-                        goToPoint(point4, quaternion1);
-                        goToPoint(point2, quaternion1);
-                        api.saveMatImage(api.getMatNavCam(), "final_image.png");
-                        api.takeTargetItemSnapshot();
-                    } else if (i == 2) {
-//                        api.moveTo(point5, quaternion2, true);
-//                        api.moveTo(point4, quaternion2, true);
-                        goToPoint(point5, quaternion1);
-                        goToPoint(point4, quaternion1);
-                        api.saveMatImage(api.getMatNavCam(), "final_image.png");
-                        api.takeTargetItemSnapshot();
-                    } else if (i == 3) {
-                        //api.moveTo(point6, quaternion2, true);
-                        goToPoint(point6, quaternion2);
-                        api.saveMatImage(api.getMatNavCam(), "final_image.png");
-                        api.takeTargetItemSnapshot();
-                    }
+            String targetItem = "diamond"; //default value
+            for (String item:targetResult.getLabels()) {
+                if (item.equals("crystal")||item.equals("diamond")||item.equals("emerald")) {
+                    targetItem = item;
                 }
             }
+            int found_target=0;
+            for (int i = 0; i < predictions.size(); i++) {
+                for (String prediction:predictions.get(i))
+                    if (prediction.equals(targetItem)) {
+                        Log.i("ROT", "Going to target at" + String.valueOf(i));
+                        if (i == 0) {
+    //                        api.moveTo(point5, quaternion, true);
+    //                        api.moveTo(point4, quaternion, true);
+    //                        api.moveTo(point2, quaternion, true);
+    //                        api.moveTo(point1, quaternion, true);
+    //                        api.moveTo(point, quaternion, true);
+                           //goToPoint(point5, quaternion);
+                            //goToPoint(point4, quaternion);
+                            goToPoint(point2, quaternion);
+                            goToPoint(point1, quaternion);
+                            goToPoint(point, quaternion);
+                            goToPoint(new Point(point.getX()+cx, point.getY(),point.getZ()+cz), quaternion);
+                            api.saveMatImage(api.getMatNavCam(), "final_image.png");
+                            api.takeTargetItemSnapshot();
+                        } else if (i == 1) {
+    //                        api.moveTo(point5, quaternion1, true);
+    //                        api.moveTo(point4, quaternion1, true);
+    //                        api.moveTo(point2, quaternion1, true);
+                            //goToPoint(point5, quaternion1);
+                            //goToPoint(point4, quaternion1);
+                            goToPoint(point2, quaternion1);
+                            goToPoint(new Point(point2.getX()+cx, point2.getY(),point2.getZ()+cz), quaternion1);
+                            api.saveMatImage(api.getMatNavCam(), "final_image.png");
+                            api.takeTargetItemSnapshot();
+                        } else if (i == 2) {
+    //                        api.moveTo(point5, quaternion2, true);
+    //                        api.moveTo(point4, quaternion2, true);
+                            //goToPoint(point5, quaternion1);
+                            //goToPoint(point4, quaternion1);
+                            //goToPoint(new Point(point4.getX()+cx, point4.getY(),point4.getZ()+cz), quaternion1);
+                            api.saveMatImage(api.getMatNavCam(), "final_image.png");
+                            api.takeTargetItemSnapshot();
+                        } else if (i == 3) {
+                            //api.moveTo(point6, quaternion2, true);
+                            //goToPoint(point6, quaternion2);
+                            //goToPoint(new Point(point6.getX()+cx, point6.getY(),point6.getZ()+cz), quaternion2);
+                            api.saveMatImage(api.getMatNavCam(), "final_image.png");
+                            api.takeTargetItemSnapshot();
+                        }
+                    }
+                }
             if(found_target==0){
                     // go to 3 (since that is most common)
                     //api.moveTo(point5, quaternion2, true);
                     //api.moveTo(point4, quaternion2, true);
-                    goToPoint(point5, quaternion1);
-                    goToPoint(point4, quaternion1);
+                    //goToPoint(point5, quaternion1);
+                    //goToPoint(point4, quaternion1);
+                    //goToPoint(new Point(point4.getX()+cx, point4.getY(),point4.getZ()+cz), quaternion1);
                     api.saveMatImage(api.getMatNavCam(), "final_image.png");
                     api.takeTargetItemSnapshot();
                 }
@@ -888,12 +1046,127 @@ public class YourService extends KiboRpcService {
     }
 
 */
-    private String processImage(Mat mainImage, List<Integer> templatePaths, int destination) {
+    public double[] extractFeatures(Mat binary) {
+        // Load image
+       /* Bitmap bitmap = BitmapFactory.decodeFile(imagePath);
+        if (bitmap == null) {
+            Log.e("OpenCV", "Image could not be loaded.");
+            return null;
+        }
+
+        // Convert Bitmap to Mat
+        Mat image = new Mat();
+        org.opencv.android.Utils.bitmapToMat(bitmap, image);
+
+        // Convert to grayscale
+        Mat gray = new Mat();
+        Imgproc.cvtColor(image, gray, Imgproc.COLOR_BGR2GRAY);
+
+        // Apply binary thresholding
+        Mat binary = new Mat();
+        Imgproc.threshold(gray, binary, 160, 255, Imgproc.THRESH_BINARY);
+*/
+        // Find contours
+        List<MatOfPoint> contours = new ArrayList<>();
+        Mat hierarchy = new Mat();
+        Imgproc.findContours(binary, contours, hierarchy, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE);
+
+        // Filter contours based on area
+        double minAreaThreshold = 15.0;  // Example threshold, adjust as necessary
+        List<MatOfPoint> filteredContours = new ArrayList<>();
+        for (MatOfPoint contour : contours) {
+            if (Imgproc.contourArea(contour) >= minAreaThreshold) {
+                filteredContours.add(contour);
+            }
+        }
+
+        // Sort contours by area and select the largest N contours
+        int N = 3;  // Number of contours to use
+        Collections.sort(filteredContours, new Comparator<MatOfPoint>() {
+            @Override
+            public int compare(MatOfPoint o1, MatOfPoint o2) {
+                return Double.compare(Imgproc.contourArea(o2), Imgproc.contourArea(o1));
+            }
+        });
+
+        // Pad with empty contours if necessary
+        while (filteredContours.size() < N) {
+            filteredContours.add(new MatOfPoint());
+        }
+        filteredContours = filteredContours.subList(0, N);
+
+        // Calculate Hu Moments
+        List<Mat> huMomentsList = new ArrayList<>();
+        for (MatOfPoint contour : filteredContours) {
+            if (contour.empty()) {
+                huMomentsList.add(new Mat());
+            } else {
+                List<org.opencv.core.Point> points = contour.toList();
+                double m00 = 0, m10 = 0, m01 = 0, m20 = 0, m11 = 0, m02 = 0, m30 = 0, m21 = 0, m12 = 0, m03 = 0;
+                for (org.opencv.core.Point point : points) {
+                    double x = point.x;
+                    double y = point.y;
+                    m00 += 1;
+                    m10 += x;
+                    m01 += y;
+                    m20 += x * x;
+                    m11 += x * y;
+                    m02 += y * y;
+                    m30 += x * x * x;
+                    m21 += x * x * y;
+                    m12 += x * y * y;
+                    m03 += y * y * y;
+                }
+
+                Moments moments = new Moments(m00, m10, m01, m20, m11, m02, m30, m21, m12, m03);
+
+                //Moments moments = new Moments(contour);
+                Mat huMoments = new Mat();
+                Imgproc.HuMoments(moments, huMoments);
+                huMomentsList.add(huMoments);
+            }
+        }
+
+        // Flatten the list of Hu Moments
+        double[] huMomentsArray = new double[huMomentsList.size() * 7];
+        int index = 0;
+        for (Mat huMoment : huMomentsList) {
+            for (int i = 0; i < 7; i++) {
+                huMomentsArray[index++] = huMoment.get(0, i)[0];
+            }
+        }
+
+//        for (Mat huMoment : huMomentsList) {
+//            System.arraycopy(huMoment, 0, huMomentsArray, index, huMoment.length);
+//            index += huMoment.length;
+//        }
+
+        return huMomentsArray;
+    }
+
+    private PredictionResult processImage(Mat mainImage, List<Integer> templatePaths, int destination) {
         String[] classNames = {"beaker", "goggle", "hammer", "kapton-tape", "pipette", "screwdriver", "thermometer", "top", "watch", "wrench"};
 //        File folder = new File(folderPath);
 //        File[] files = folder.listFiles();
 
         Mat gray = mainImage;
+        double[][] intrinsics = api.getNavCamIntrinsics();
+        double[] cameraMatrixArray = intrinsics[0];
+        double[] distortionCoefficientsArray = intrinsics[1];
+
+        Mat cameraMatrix = new Mat(3, 3, CvType.CV_64F);
+        cameraMatrix.put(0, 0, cameraMatrixArray);
+
+        Mat distortionCoefficients = new Mat(1, distortionCoefficientsArray.length, CvType.CV_64F);
+        distortionCoefficients.put(0, 0, distortionCoefficientsArray);
+
+        // Load your input image (replace with actual image loading code)
+
+
+        // Undistort the image
+        Mat gray_undistorted = new Mat();
+        Calib3d.undistort(gray, gray_undistorted, cameraMatrix, distortionCoefficients);
+        // Convert undistorted Mat back to Bitmap
         //Mat gray = new Mat();
         //Imgproc.cvtColor(image, gray, Imgproc.COLOR_BGR2GRAY);
 
@@ -901,13 +1174,13 @@ public class YourService extends KiboRpcService {
         ArucoDetector arucoDetector = new ArucoDetector(arucoDict);
         Mat ids = new Mat();
         List<Mat> corners = new ArrayList<>();
-        arucoDetector.detectMarkers(gray, corners, ids);
+        arucoDetector.detectMarkers(gray_undistorted, corners, ids);
         //Aruco.detectMarkers(gray, arucoDict, corners, ids);
 
         Mat image = new Mat();
         Mat image_markers = new Mat();
 
-        Imgproc.cvtColor(gray, image, Imgproc.COLOR_GRAY2BGR);
+        Imgproc.cvtColor(gray_undistorted, image, Imgproc.COLOR_GRAY2BGR);
         image_markers = image.clone();
         //Imgproc.cvtColor(gray, image_markers, Imgproc.COLOR_GRAY2BGR);
 
@@ -919,6 +1192,7 @@ public class YourService extends KiboRpcService {
         int m = 0;
 
         // Iterate through detected markers
+
         for (int i = 0; i < ids.rows(); i++) {
             MatOfPoint2f cornerMat = new MatOfPoint2f(corners.get(i));
             org.opencv.core.Point[] points = cornerMat.toArray();
@@ -935,6 +1209,9 @@ public class YourService extends KiboRpcService {
             if (dist < mindist) {
                 mindist = dist;
                 m = i;
+                cx=centerX-640;
+                cz=centerY-480;
+
             }
         }
 
@@ -946,6 +1223,11 @@ public class YourService extends KiboRpcService {
         double aruco_width = Math.sqrt(Math.pow(arucoCornersArray[1].x - arucoCornersArray[0].x,2) + Math.pow(arucoCornersArray[1].y - arucoCornersArray[0].y, 2));
         double aruco_height = Math.sqrt(Math.pow(arucoCornersArray[2].x - arucoCornersArray[1].x, 2) + Math.pow(arucoCornersArray[2].y - arucoCornersArray[1].y, 2));
         double aruco_area=aruco_width*aruco_height;
+
+        cx = cx*0.07/aruco_width;
+        cz=cz*0.07/aruco_height;
+        Log.i(TAG, "aruco center(x,y):["+Double.valueOf(cx)+","+Double.valueOf(cz)+"]");
+        Log.i(TAG, "aruco width and height: "+ Double.valueOf(aruco_width)+","+Double.valueOf(aruco_height)+"]");
         Mat edges = new Mat();
         Imgproc.Canny(image, edges, 50, 150);
 
@@ -1120,7 +1402,51 @@ public class YourService extends KiboRpcService {
             Log.i(TAG, "Unable to find objects, guessing 1!");
         }
 
-        Log.i(TAG, "Number of objects: " + numObjects);
+//        Scalar mean = new Scalar(0.7726 * 255.0, 0.7726 * 255.0, 0.7726 * 255.0);
+//        double stdev = 0.3092;
+//        String[] classes = {
+//                "beaker",
+//                "goggle",
+//                "hammer",
+//                "kapton-tape",
+//                "pipette",
+//                "screwdriver",
+//                "thermometer",
+//                "top",
+//                "watch",
+//                "wrench"
+//        };
+        //String filepath = "resnet.onxx";
+        //OpenCVModel cvModel = new OpenCVModel(this, mean, stdev, classes, filepath);
+//        OpenCVModel cvModel = new OpenCVModel(this);
+//        Log.i(TAG, "LOADED OPENCV MOBILE, STARTING INFERENCES");
+//        String pred = cvModel.inference(warped);
+//        Log.i(TAG, "prediction 0 " + pred);
+//        Log.i(TAG, "FINISHED INFERENCE");
+
+
+
+//        Scalar count_mean = new Scalar(0.7794 * 255.0, 0.7794 * 255.0, 0.7794 * 255.0);
+//        double count_stdev = 0.3461;
+//        String[] count_classes = {
+//                "1",
+//                "2",
+//                "3",
+//                "4",
+//                "5",
+//                "7",
+//        };
+//        String count_filepath = "resnet_count.onxx";
+        //OpenCVModel cvCountModel = new OpenCVModel(this, count_mean, count_stdev, count_classes, count_filepath);
+//        OpenCVModel cvCountModel = new OpenCVModel(this);
+//        Log.i(TAG, "STARTING COUNT OBJECTS");
+//        numObjects = Integer.parseInt(cvCountModel.countObjects(warped));
+//        Log.i(TAG, "FINISHED COUNT OBJECTS");
+//        Log.i(TAG, "Number of objects: " + numObjects);
+
+
+
+
 
         // classify image base on  ORB /hog detector
 
@@ -1188,13 +1514,33 @@ public class YourService extends KiboRpcService {
 */
         // Use OpenCV model here
         Log.i(TAG, "TESTING OPENCV MOBILE");
+//        Scalar mean = new Scalar(0.7726 * 255.0, 0.7726 * 255.0, 0.7726 * 255.0);
+//        double stdev = 0.3092;
+//        String[] classes = {
+//                "beaker",
+//                "goggle",
+//                "hammer",
+//                "kapton-tape",
+//                "pipette",
+//                "screwdriver",
+//                "thermometer",
+//                "top",
+//                "watch",
+//                "wrench"
+//        };
+//        String filepath = "resnet.onxx";
         OpenCVModel cvModel = new OpenCVModel(this);
         Log.i(TAG, "LOADED OPENCV MOBILE, STARTING INFERENCES");
-        String pred = cvModel.inference(warped);
-        Log.i(TAG, "prediction 0 " + pred);
+        PredictionResult predictionResult = cvModel.inference(warped);
+        //Log.i(TAG, "prediction 0 " + pred);
         Log.i(TAG, "FINISHED INFERENCE");
 
-        return pred;
+        Log.i(TAG, "STARTING COUNT OBJECTS");
+        //numObjects = Integer.parseInt(cvModel.countObjects(warped));
+        Log.i(TAG, "prediction 1 " + numObjects);
+        Log.i(TAG, "FINISHED COUNT OBJECTS");
+
+        return predictionResult;
     }
 }
 //    private MappedByteBuffer loadModelFile() throws IOException {
@@ -1289,7 +1635,7 @@ public class YourService extends KiboRpcService {
 //        //Log.d(TAG, output[0]);
 //        return classes[index];
 //    }
-    
+
 
 
 

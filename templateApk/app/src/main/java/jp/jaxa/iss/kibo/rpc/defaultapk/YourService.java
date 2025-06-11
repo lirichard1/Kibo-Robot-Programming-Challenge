@@ -208,6 +208,7 @@ public class YourService extends KiboRpcService {
             Log.i(TAG, "ABOUT TO DO PREDICTIONS");
             PredictionResult predictionResult = processImage(image, templatePaths, destination);
             String[] strPreds = predictionResult.getLabels();
+            int numObjects = predictionResult.getNumObjects();
             Log.i(TAG, "FINISHED IMAGE RECOGNITION, START COUNT OBJECTS");
             Log.i(TAG, "FINISHED COUNT OBJECTS");
 

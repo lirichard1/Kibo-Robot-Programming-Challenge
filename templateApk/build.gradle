@@ -2,7 +2,16 @@
 
 buildscript {
     repositories {
-        jcenter()
+        //jcenter()
+        mavenCentral()
+        maven {
+            url 'https://maven.repository.redhat.com/ga/'
+            name 'Red Hat GA'
+        }
+        maven {
+            url 'https://artifacts.camunda.com/artifactory/public/'
+            name 'Camunda'
+        }
         maven {
             url 'https://maven.google.com/'
             name 'Google'
@@ -22,7 +31,16 @@ allprojects {
         maven {
             url "https://github.com/rosjava/rosjava_mvn_repo/raw/master"
         }
-        jcenter()
+        mavenCentral()
+        maven {
+            url 'https://maven.repository.redhat.com/ga/'
+            name 'Red Hat GA'
+        }
+        maven {
+            url 'https://artifacts.camunda.com/artifactory/public/'
+            name 'Camunda'
+        }
+        //jcenter()
         maven {
             url 'https://maven.google.com/'
             name 'Google'

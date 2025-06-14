@@ -215,6 +215,7 @@ public class YourService extends KiboRpcService {
             String[] strPreds = predictionResult.getLabels();
             Log.i("ROT", "PREDICTIONS FOR AREA 1: "+Arrays.toString(strPreds));
             int num_Objects = predictionResult.getNumObjects();
+            String finalPred = "coin";
             Log.i(TAG, "FINISHED IMAGE RECOGNITION, START COUNT OBJECTS");
             Log.i(TAG, "FINISHED COUNT OBJECTS");
 
@@ -227,14 +228,20 @@ public class YourService extends KiboRpcService {
             }
             if (num_Objects > 0) {
                 for (int i = 0;i<strPreds.length;i++) {
+                    Log.i("ROT", "num_Objects>0");
                     if (strPreds[i].equals("crystal")||strPreds[i].equals("diamond")||strPreds[i].equals("emerald")) {
+                        num_Objects--;
                         continue;
                     }
-                    api.setAreaInfo(1, strPreds[i], num_Objects);
+                    else {
+                        finalPred = strPreds[i];
+                    }
 
                 }
+                api.setAreaInfo(1, finalPred, num_Objects);
             }else {
                 for (int i = 0;i<strPreds.length;i++) {
+                    Log.i("ROT", "num_Objects=0");
                     if (strPreds[i].equals("crystal")||strPreds[i].equals("diamond")||strPreds[i].equals("emerald")) {
                         continue;
                     }
@@ -293,6 +300,7 @@ public class YourService extends KiboRpcService {
             String[] strPreds1 = predictionResult1.getLabels();
             Log.i("ROT", "PREDICTIONS FOR AREA 2: "+Arrays.toString(strPreds1));
             int numObjects1 = predictionResult1.getNumObjects();
+            String finalPred1 = "coin";
             //int numObjects1 = countObjects(image1);
             if (predictionResult1 != null) {
                 api.saveMatImage(predictionResult1.getBlob(), "inference1.png");
@@ -303,18 +311,25 @@ public class YourService extends KiboRpcService {
             }
             if (numObjects1 > 0) {
                 for (int i = 0;i<strPreds1.length;i++) {
+                    Log.i("ROT", "numObjects1>0");
                     if (strPreds1[i].equals("crystal")||strPreds1[i].equals("diamond")||strPreds1[i].equals("emerald")) {
+                        numObjects1--;
                         continue;
                     }
-                    api.setAreaInfo(2, strPreds1[i], numObjects1);
+                    else {
+                        finalPred1 = strPreds1[i];
+                    }
                 }
+                api.setAreaInfo(2, finalPred1, numObjects1);
             }else {
                 for (int i = 0;i<strPreds1.length;i++) {
+                    Log.i("ROT", "numObjects1=0");
                     if (strPreds1[i].equals("crystal")||strPreds1[i].equals("diamond")||strPreds1[i].equals("emerald")) {
                         continue;
                     }
-                    api.setAreaInfo(2, strPreds1[i], 4);
+                    api.setAreaInfo(2, strPreds1[i], 3);
                 }
+
             }
 //            result = api.moveTo(point2, quaternion1, true);
 //            while (!result.hasSucceeded() && loopCounter < LOOP_MAX) {
@@ -353,6 +368,7 @@ public class YourService extends KiboRpcService {
             String[] strPreds2 = predictionResult2.getLabels();
             Log.i("ROT", "PREDICTIONS FOR AREA 3: "+Arrays.toString(strPreds2));
             int numObjects2 = predictionResult2.getNumObjects();
+            String finalPred2 = "coin";
             //int numObjects1 = countObjects(image1);
             if (predictionResult2 != null) {
                 api.saveMatImage(predictionResult2.getBlob(), "inference2.png");
@@ -363,13 +379,19 @@ public class YourService extends KiboRpcService {
             }
             if (numObjects2 > 0) {
                 for (int i = 0;i<strPreds2.length;i++) {
+                    Log.i("ROT", "numObjects2>0");
                     if (strPreds2[i].equals("crystal")||strPreds2[i].equals("diamond")||strPreds2[i].equals("emerald")) {
+                        numObjects2--;
                         continue;
                     }
-                    api.setAreaInfo(3, strPreds2[i], numObjects2);
+                    else {
+                        finalPred2 = strPreds2[i];
+                    }
                 }
+                api.setAreaInfo(3, finalPred2, numObjects2);
             }else {
                 for (int i = 0;i<strPreds2.length;i++) {
+                    Log.i("ROT", "numObjects2=0");
                     if (strPreds2[i].equals("crystal")||strPreds2[i].equals("diamond")||strPreds2[i].equals("emerald")) {
                         continue;
                     }
@@ -406,6 +428,7 @@ public class YourService extends KiboRpcService {
             PredictionResult predictionResult3 = processImage(image3, net, destination);
             String[] strPreds3 = predictionResult3.getLabels();
             int numObjects3 = predictionResult3.getNumObjects();
+            String finalPred3 = "coin";
             //int numObjects1 = countObjects(image1);
             if (predictionResult3 != null) {
                 api.saveMatImage(predictionResult3.getBlob(), "inference3.png");
@@ -416,13 +439,19 @@ public class YourService extends KiboRpcService {
             }
             if (numObjects3 > 0) {
                 for (int i = 0;i<strPreds3.length;i++) {
+                    Log.i("ROT", "numObjects3>0");
                     if (strPreds3[i].equals("crystal")||strPreds3[i].equals("diamond")||strPreds3[i].equals("emerald")) {
+                        numObjects3--;
                         continue;
                     }
-                    api.setAreaInfo(4, strPreds3[i], numObjects3);
+                    else {
+                        finalPred3 = strPreds3[i];
+                    }
                 }
+                api.setAreaInfo(4, finalPred3, numObjects3);
             }else {
                 for (int i = 0;i<strPreds3.length;i++) {
+
                     if (strPreds3[i].equals("crystal")||strPreds3[i].equals("diamond")||strPreds3[i].equals("emerald")) {
                         continue;
                     }
@@ -568,6 +597,7 @@ public class YourService extends KiboRpcService {
                     targetItem = item;
                 }
             }
+            Log.i("TARGET ITEM: ", targetItem);
             int found_target=0;
             for (int i = 0; i < predictions.size(); i++) {
                 for (String prediction:predictions.get(i))
@@ -593,7 +623,7 @@ public class YourService extends KiboRpcService {
     //                        api.moveTo(point2, quaternion1, true);
                             //goToPoint(point5, quaternion1);
                             //goToPoint(point4, quaternion1);
-                            goToPoint(point2, quaternion1);
+                            goToPoint(point1, quaternion1);
                             goToPoint(new Point(point2.getX()+cx, point2.getY(),point2.getZ()+cz), quaternion1);
                             api.saveMatImage(api.getMatNavCam(), "final_image.png");
                             api.takeTargetItemSnapshot();
@@ -603,12 +633,14 @@ public class YourService extends KiboRpcService {
                             //goToPoint(point5, quaternion1);
                             //goToPoint(point4, quaternion1);
                             //goToPoint(new Point(point4.getX()+cx, point4.getY(),point4.getZ()+cz), quaternion1);
+                            goToPoint(point2, quaternion1);
                             api.saveMatImage(api.getMatNavCam(), "final_image.png");
                             api.takeTargetItemSnapshot();
                         } else if (i == 3) {
                             //api.moveTo(point6, quaternion2, true);
                             //goToPoint(point6, quaternion2);
                             //goToPoint(new Point(point6.getX()+cx, point6.getY(),point6.getZ()+cz), quaternion2);
+                            goToPoint(point3, quaternion2);
                             api.saveMatImage(api.getMatNavCam(), "final_image.png");
                             api.takeTargetItemSnapshot();
                         }
@@ -621,6 +653,7 @@ public class YourService extends KiboRpcService {
                     //goToPoint(point5, quaternion1);
                     //goToPoint(point4, quaternion1);
                     //goToPoint(new Point(point4.getX()+cx, point4.getY(),point4.getZ()+cz), quaternion1);
+                    goToPoint(point3, quaternion2);
                     api.saveMatImage(api.getMatNavCam(), "final_image.png");
                     api.takeTargetItemSnapshot();
                 }

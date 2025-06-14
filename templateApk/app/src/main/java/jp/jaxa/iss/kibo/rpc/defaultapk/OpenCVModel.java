@@ -8,6 +8,7 @@ import org.opencv.android.Utils;
 import org.opencv.core.Core;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
+import org.opencv.core.MatOfDouble;
 import org.opencv.core.MatOfFloat;
 import org.opencv.core.MatOfInt;
 import org.opencv.core.MatOfRect;
@@ -35,9 +36,11 @@ import java.util.List;
 import java.util.Map;
 
 
-import static org.opencv.dnn.Dnn.blobFromImage;
-import static org.opencv.dnn.Dnn.readNetFromONNX;
+//import static org.opencv.dnn.Dnn.blobFromImage;
+//import static org.opencv.dnn.Dnn.readNetFromONNX;
 import static org.opencv.imgproc.Imgproc.*;
+import java.util.Set;
+import java.util.HashSet;
 
 
 public class OpenCVModel {
@@ -62,6 +65,7 @@ public class OpenCVModel {
     float nmsThreshold = 0.4f;
     int numClasses = classes.length;
 
+
     //    private String[] count_classes = {
 //            "1",
 //            "2",
@@ -75,18 +79,18 @@ public class OpenCVModel {
         this.context = context;
     }
 
-    public PredictionResult inference(Mat mat) {
+    public PredictionResult inference(Mat mat, Net net) {
         // Resize to 224x224
-//        Size size = new Size(640, 640);
-//
-//        //Mat colored = new Mat();
-//        //cvtColor(mat, colored, COLOR_GRAY2RGB);
+        Size size = new Size(640, 640);
+
+   //     Mat colored = new Mat();
+ //       cvtColor(mat, colored, COLOR_GRAY2RGB);
 //
 //        Mat resized = new Mat();
-//        resize(mat, resized, size, 0, 0, INTER_AREA);
-        int origW = mat.cols();
-        int origH = mat.rows();
-        Mat mat_clone = mat.clone();
+//        resize(colored, resized, size, 0, 0, INTER_AREA);
+//        int origW = resized.cols();
+//        int origH = resized.rows();
+        //Mat mat_clone = mat.clone();
 
  //2) Compute scale
 //        int targetSize = 640;
@@ -120,34 +124,44 @@ public class OpenCVModel {
 //                        padLeft, padLeft + newW
 //                )
 //        );
-
-        Mat blob = blobFromImage(
+        Mat blob = Dnn.blobFromImage(
                 mat,
-                1 / 255.0, // scalefactor
+                1.0 / 255.0, // scalefactor
                 new Size(640,640), // size
                 new Scalar(0,0,0),
                 //new Scalar(0.7653 * 255.0, 0.7653 * 255.0, 0.7653 * 255.0), // mean
                 // TODO: Check this!!!
-                false, // swaprb grayscale
+                true, // RGB->BGR
                 false //crop
                 //CvType.CV_32F
         );
+        MatOfDouble mean = new MatOfDouble();
+        MatOfDouble std = new MatOfDouble();
+        Core.meanStdDev(blob, mean, std);
+        Log.i("BLOB_STATS", "mean=" + mean.dump() + "   std=" + std.dump());
 
+        //hello my name is jeff
         // Divide by standard dev
         //Mat normed = new Mat();
         //Core.divide(blob, Scalar.all(0.3056), normed);
         // Load the ONNX Model
-        Log.i("ROT", "Done preprocessing :)");
+        //Log.i("ROT", "Done preprocessing :)");
 
         Log.i("ROT", "Loading ONNX model");
         try {
-            Net net = Dnn.readNetFromONNX(assetFilePath("my_model_50_updated.onnx"));
+
+
             Log.i("ROT", "Model loaded, setting input");
             net.setInput(blob);
 
             Log.i("ROT", "WE FORWARDING");
-            List<Mat> output = new ArrayList<>();
-            net.forward(output, net.getUnconnectedOutLayersNames());
+            //List<Mat> output = new ArrayList<>();
+            //net.forward(output, net.getUnconnectedOutLayersNames());
+            // = output.reshape(15, (int)output.total() / 15); // reshape to Nx15
+            Mat output = net.forward();
+            //net.forward(output, net.getUnconnectedOutLayersNames());
+            //org.opencv  =net.forward()
+
 
 //            int printRows = Math.min(5, mat.rows());
 //            int printCols = Math.min(5, mat.cols());
@@ -180,8 +194,9 @@ public class OpenCVModel {
 //                        idList.get(i)));
 //            }
             Log.i("ROT", "STARTING POSTPROCESSING");
-            Mat detections = output.get(0);  // shape: [1, 15, 8400]
-            Log.i("ROT", "Original shape: " + detections.toString());
+            //Mat detections = output.get(0);  // shape: [1, 15, 8400]
+            Mat detections = output;
+           // Log.i("ROT", "Original shape: " + detections.toString());
 //
 //            // --- STEP 1: TRANSPOSE from [1, 15, 8400] -> [1, 8400, 15] ---
 //            List<Mat> channels = new ArrayList<>();
@@ -190,10 +205,19 @@ public class OpenCVModel {
 //            Mat transposed = new Mat();
 //            Core.merge(channels, transposed);  // Now shape [1, 8400, 15]
 //            transposed = transposed.reshape(1, 8400);  // Final shape: [8400 x 15]
+            Mat reshaped = detections.reshape(1, 15);  // now shape is [15 rows × 8400 cols]
+
+// 3) transpose into 8400×15
+            Mat transposed = new Mat();
+            Core.transpose(reshaped, transposed);
 
 //            Log.i("ROT", "Transposed & reshaped: " + transposed.toString());
-            Mat transposed = detections.reshape(1,8400);
-
+//            Mat transposed = detections.reshape(1,8400);
+            Log.i("detection shape: ", detections.toString());
+            //Mat transposed = detections.reshape(0, detections.size(2));
+            Log.i("transposed shape toString: ", transposed.toString());
+            Log.i("transposed shape: ", String.valueOf(transposed.size()));
+            Log.i("transposed row: ", String.valueOf(transposed.rows()));
             List<Rect2d> boxes = new ArrayList<>();
             List<Float> confidences = new ArrayList<>();
             List<Integer> classIds = new ArrayList<>();
@@ -203,32 +227,34 @@ public class OpenCVModel {
             for (int i = 0; i < transposed.rows(); i++) {
                 float[] detection = new float[15];
                 transposed.get(i, 0, detection);
-                Log.i("ROT",Arrays.toString(detection));
+                //Log.i("ROT",Arrays.toString(detection));
                 // Decode objectness confidence
-                float objConf = detection[4];
-                //Log.i("ROT","object confidence: "+objConf);
-                if (objConf < 0.5f) continue;  // early filter
+//                float objConf = detection[4];
+//                //Log.i("ROT","object confidence: "+objConf);
+//                if (objConf < 0.5f) continue;  // early filter
 
                 // Find max class score
 
                 // TODO: Why is this -1, shouldn't this be -infinity
                 float maxClassScore = -1f;
                 int classId = -1;
-                for (int j = 5; j < 15; j++) {
+                for (int j = 4; j < 15; j++) {
                     float classScore = detection[j];
                     //Log.i("ROT", "classScore: "+classScore+"for class "+j);
                     if (classScore > maxClassScore) {
                         maxClassScore = classScore;
-                        classId = j - 5;
+                        classId = j - 4;
                     }
                 }
-                Log.i("ROT", "class id: "+classId);
-                Log.i("ROT", "objConf: "+objConf);
-                Log.i("ROT", "max class score: "+maxClassScore);
-                float finalConf = objConf * maxClassScore;
-                Log.i("ROT", "final confidence: "+finalConf);
-                if (finalConf < 0.5f) continue;  // final confidence threshold
 
+                //Log.i("ROT", "max class score: "+maxClassScore);
+
+                float finalConf = maxClassScore;
+                //Log.i("ROT", "final confidence: "+finalConf);
+                if (finalConf < 0.3f) continue;  // final confidence threshold
+                //Log.i("ROT", "class id: "+classId);
+
+                //Log.i("ROT", "objConf: "+String.valueOf(maxClassScore));
                 // Decode bounding box from [cx, cy, w, h] to [x, y, w, h]
 //                double cx = detection[0] * 640;
 //                double cy = detection[1] * 640;
@@ -266,13 +292,14 @@ public class OpenCVModel {
                 float y = cy - h / 2f;
 
 // Step 2: Convert from normalized (0–1) to input image size (640x640)
+              /*
                 x *= 640;
                 y *= 640;
                 w *= 640;
                 h *= 640;
                 cx *= 640;
                 cy *= 640;
-
+ */
 // Step 3: Undo padding
 //                float x_unpad = (x - padLeft) / scale;
 //                float y_unpad = (y - padTop) / scale;
@@ -292,7 +319,7 @@ public class OpenCVModel {
             }
 
             Log.i("ROT", "Starting NMS");
-            Log.i("ROT", boxes.toString());
+            //Log.i("ROT", boxes.toString());
             Log.i("ROT", String.valueOf(boxes.size()));
             Log.i("ROT", String.valueOf(confidences.size()));
             Log.i("ROT", String.valueOf(classIds.size()));
@@ -304,11 +331,11 @@ public class OpenCVModel {
 //            }
 
             // --- STEP 3: NMS ---
+            /*
             MatOfRect2d boxesMat = new MatOfRect2d();
             boxesMat.fromList(boxes);
             MatOfFloat confidencesMat = new MatOfFloat(Converters.vector_float_to_Mat(confidences));
             MatOfInt indices = new MatOfInt();
-
             // TODO: Check if it matches the ultralytics settings
             Dnn.NMSBoxes(boxesMat, confidencesMat, 0.5f, 0.4f, indices);
             //--- STEP 4: Filter Final Results ---
@@ -322,8 +349,47 @@ public class OpenCVModel {
                 filteredClassIds.add(classIds.get(idx));
                 filteredConfidences.add(confidences.get(idx));
             }
+            */
+            List<Rect2d> filteredBoxes = new ArrayList<>();
+            List<Integer> filteredClassIds = new ArrayList<>();
+            List<Float> filteredConfidences = new ArrayList<>();
+
+// Unique set of classes
+            Set<Integer> uniqueClassIds = new HashSet<>(classIds);
+
+            for (int classId : uniqueClassIds) {
+                List<Rect2d> classBoxes = new ArrayList<>();
+                List<Float> classConfidences = new ArrayList<>();
+                List<Integer> classIndices = new ArrayList<>();
+
+                for (int i = 0; i < classIds.size(); i++) {
+                    if (classIds.get(i) == classId) {
+                        classBoxes.add(boxes.get(i));
+                        classConfidences.add(confidences.get(i));
+                        classIndices.add(i);  // Track original index
+                    }
+                }
+
+                MatOfRect2d classBoxesMat = new MatOfRect2d();
+                classBoxesMat.fromList(classBoxes);
+                MatOfFloat classConfidencesMat = new MatOfFloat(Converters.vector_float_to_Mat(classConfidences));
+                MatOfInt nmsIndices = new MatOfInt();
+
+                Dnn.NMSBoxes(classBoxesMat, classConfidencesMat, 0.3f, 0.2f, nmsIndices);
+
+                for (int i = 0; i < nmsIndices.rows(); i++) {
+                    int localIdx = (int) nmsIndices.get(i, 0)[0];
+                    int globalIdx = classIndices.get(localIdx);
+
+                    filteredBoxes.add(boxes.get(globalIdx));
+                    filteredConfidences.add(confidences.get(globalIdx));
+                    filteredClassIds.add(classId);
+                }
+            }
+
+
             Log.i("ROT", "AFTER FINAL FILTER");
-            Log.i("ROT", filteredBoxes.toString());
+            //Log.i("ROT", filteredBoxes.toString());
             Log.i("ROT", String.valueOf(filteredBoxes.size()));
             Log.i("ROT", String.valueOf(filteredConfidences.size()));
             Log.i("ROT", String.valueOf(filteredClassIds.size()));
@@ -346,38 +412,82 @@ public class OpenCVModel {
                 Log.i("YOLOv11", msg);
             }
 
-            Mat visualization = blob;  // or clone() if you need to preserve the original
+            Mat visualization = mat.clone();  // or clone() if you need to preserve the original
 
-// 2) Loop over detections
+
+            int origW = visualization.cols();
+            int origH = visualization.rows();
+
+// 3) Compute separate scale factors
+            double scaleX = origW / 640.0;
+            double scaleY = origH / 640.0;
+
+// 4) Clone the original for drawing
+
+// 5) Loop & draw, mapping each box back:
             for (int i = 0; i < filteredBoxes.size(); i++) {
-                Rect2d box = filteredBoxes.get(i);
-                int classId = filteredClassIds.get(i);
+                Rect2d b = filteredBoxes.get(i);
                 float conf = filteredConfidences.get(i);
+                String className = classes[filteredClassIds.get(i)];
+                if (conf < 0.25f) continue;
 
-                // 2a) Draw rectangle
-                Point topLeft = new Point(box.x, box.y);
-                Point bottomRight = new Point(box.x + box.width, box.y + box.height);
-                Imgproc.rectangle(visualization, topLeft, bottomRight, new Scalar(0, 255, 0), 2);
+                // map from 640×640 space → original space
+                double x  = b.x * scaleX;
+                double y  = b.y * scaleY;
+                double w  = b.width  * scaleX;
+                double h  = b.height * scaleY;
 
-                // 2b) Prepare label text
-                String label = String.format("%s: %.2f", classes[classId], conf);
+                // corners in original
+                Point tl = new Point(x,       y);
+                Point br = new Point(x + w,   y + h);
 
-                // 2c) Determine text position & draw
+                // draw box
+                Imgproc.rectangle(visualization, tl, br, new Scalar(0,255,0), 2);
+
+                // draw confidence label (white text on green bg)
+                String label = String.format("%s: %.2f", className, conf);;
                 int[] baseLine = new int[1];
-                Size  textSize = Imgproc.getTextSize(label, Imgproc.FONT_HERSHEY_SIMPLEX, 0.5, 1, baseLine);
-                Point textOrg = new Point(
-                        box.x,
-                        box.y - 5 < 0 ? box.y + textSize.height + 5 : box.y - 5
-                );
-                Imgproc.putText(visualization, label, textOrg, Imgproc.FONT_HERSHEY_SIMPLEX, 0.5, new Scalar(255,255,255), 1);
+                Size ts = Imgproc.getTextSize(label, Imgproc.FONT_HERSHEY_SIMPLEX, 0.5, 1, baseLine);
+                double ty = y - 5 < ts.height ? y + ts.height + 5 : y - 5;
+                Point bgTL = new Point(x, ty + baseLine[0]);
+                Point bgBR = new Point(x + ts.width, ty - ts.height);
+                Imgproc.rectangle(visualization, bgTL, bgBR, new Scalar(0,255,0), Core.FILLED);
+                Imgproc.putText(visualization, label, new Point(x, ty),
+                        Imgproc.FONT_HERSHEY_SIMPLEX, 0.5,
+                        new Scalar(0,0,255), 1);
             }
+
+            Log.i("ROT", "FINISHED VISUALIZATION");
+// 2) Loop over detections
+//            for (int i = 0; i < filteredBoxes.size(); i++) {
+//                Rect2d box = filteredBoxes.get(i);
+//                int classId = filteredClassIds.get(i);
+//                float conf = filteredConfidences.get(i);
+//
+//                // 2a) Draw rectangle
+//                Point topLeft = new Point(box.x, box.y);
+//                Point bottomRight = new Point(box.x + box.width, box.y + box.height);
+//                Imgproc.rectangle(visualization, topLeft, bottomRight, new Scalar(0, 255, 0), 2);
+//
+//                // 2b) Prepare label text
+//                String label = String.format("%s: %.2f", classes[classId], conf);
+//
+//                // 2c) Determine text position & draw
+//                int[] baseLine = new int[1];
+//                Size  textSize = Imgproc.getTextSize(label, Imgproc.FONT_HERSHEY_SIMPLEX, 0.5, 1, baseLine);
+//                Point textOrg = new Point(
+//                        box.x,
+//                        box.y - 5 < 0 ? box.y + textSize.height + 5 : box.y - 5
+//                );
+//                Imgproc.putText(visualization, label, textOrg, Imgproc.FONT_HERSHEY_SIMPLEX, 0.5, new Scalar(255,255,255), 1);
+//            }
 
 // 3) Save the visualization to disk
 //    This will write a PNG or JPG (depending on extension) to the path you choose:
 
 
             Log.i("ROT","WE FINISHED BABY");
-
+            Log.i("ROT", "POSTPROCESSING FINISHED");
 
 
             //VISUALIZE PREDICTIONS
@@ -562,7 +672,7 @@ public class OpenCVModel {
 //            }
 //            Log.i("ROT", "WE ARGMAXING");
 //            return classes[argmax];
-            return new PredictionResult(str_predictions, filteredBoxes.size(), blob, visualization);
+            return new PredictionResult(str_predictions, filteredBoxes.size(), visualization);
         }
         catch (Exception e) {
             Log.i("ROT", e.getMessage());
@@ -576,82 +686,7 @@ public class OpenCVModel {
     }
 
 
-    public static Map<Integer, Integer> getAccurateClassCounts(
-        List <Mat> outs,
-        float confThreshold,
-        float nmsThreshold, // Optional: set to 0 to disable NMS
-        int numClasses) {
 
-            // Temporary storage for NMS processing
-        List<Integer> classIds = new ArrayList<>();
-        List<Float> confidences = new ArrayList<>();
-        List<Rect2d> boxes = new ArrayList<>(); // Still needed for NMS
-        Log.i("ROT","WE IN TE FUNC");
-        // Process outputs
-        for (Mat out : outs) {
-            float[] data = new float[(int)out.total()];
-            out.get(0, 0, data);
-            int numPredictions = out.rows();
-
-            for (int i = 0; i < numPredictions; i++) {
-                int offset = i * (5 + numClasses);
-                float objectness = data[offset + 4];
-
-                if (objectness >= confThreshold) {
-                    // Find best class
-                    int classId = -1;
-                    float maxClassProb = 0;
-                    for (int j = 0; j < numClasses; j++) {
-                        float classProb = data[offset + 5 + j];
-                        if (classProb > maxClassProb) {
-                            maxClassProb = classProb;
-                            classId = j;
-                        }
-                    }
-
-                    float confidence = objectness * maxClassProb;
-                    if (confidence >= confThreshold) {
-                        classIds.add(classId);
-                        confidences.add(confidence);
-
-                        // Store dummy boxes (NMS needs these even if we don't use them)
-                        boxes.add(new Rect2d(
-                                data[offset], data[offset+1], // cx,cy
-                                data[offset+2], data[offset+3] // w,h
-                        ));
-                    }
-                }
-            }
-        }
-
-        // Apply NMS if threshold > 0
-        if (nmsThreshold > 0 && !boxes.isEmpty()) {
-            MatOfRect2d boxesMat = new MatOfRect2d(boxes.toArray(new Rect2d[0]));
-            MatOfFloat confidencesMat = new MatOfFloat(toFloatArray(confidences));
-            MatOfInt indices = new MatOfInt();
-
-            Dnn.NMSBoxes(boxesMat, confidencesMat, confThreshold, nmsThreshold, indices);
-
-            // Filter results using NMS indices
-            List<Integer> filteredClassIds = new ArrayList<>();
-            for (int i = 0; i < indices.total(); i++) {
-                int idx = (int)indices.get(i, 0)[0];
-                filteredClassIds.add(classIds.get(idx));
-            }
-            classIds = filteredClassIds;
-        }
-
-        // Generate final counts
-        Map<Integer, Integer> classCounts = new HashMap<>();
-        for (int classId : classIds) {
-            classCounts.put(classId, classCounts.getOrDefault(classId, 0) + 1);
-        }
-        for (Map.Entry<Integer, Integer> entry : classCounts.entrySet()) {
-            Log.i("ROT","Key: " + entry.getKey() + ", Value: " + entry.getValue());
-        }
-
-        return classCounts;
-    }
 
 
     public static float[] toFloatArray(List<Float> list) {
@@ -661,6 +696,8 @@ public class OpenCVModel {
         }
         return array;
     }
+
+
 
 //    public String countObjects(Mat mat) {
 //        // Resize to 224x224
@@ -720,23 +757,5 @@ public class OpenCVModel {
 //
 //    }
 
-    public String assetFilePath(String assetName) throws IOException {
-        File file = new File(context.getFilesDir(), assetName);
-        try (InputStream is = context.getAssets().open(assetName)) {
-            try (OutputStream os = new FileOutputStream(file)) {
-                byte[] buffer = new byte[4 * 1024];
-                int read;
-                while ((read = is.read(buffer)) != -1) {
-                    os.write(buffer, 0, read);
-                }
-                os.flush();
-            }
-            Log.i("ROT", "OPEN FILE SUCCCESS!");
-            return file.getAbsolutePath();
-        } catch (Exception e) {
-            Log.e("ROT", e.getMessage());
-            Log.i("ROT", "ERROR writing asset path");
-            return null;
-        }
-    }
+
 }

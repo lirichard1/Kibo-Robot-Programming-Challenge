@@ -7,13 +7,11 @@ import java.util.Arrays;
 public class PredictionResult {
     public String[] labels;
     public int numObjects;
-    public Mat originalBlob;
     public Mat blob;
 
-    public PredictionResult(String[] labels, int numObjects,Mat originalBlob, Mat blob) {
+    public PredictionResult(String[] labels, int numObjects,Mat blob) {
         this.labels = labels;
         this.numObjects = numObjects;
-        this.originalBlob = originalBlob;
         this.blob = blob;
     }
 
@@ -25,9 +23,6 @@ public class PredictionResult {
         return numObjects;
     }
 
-    public Mat getOriginalBlob() {
-        return originalBlob;
-    }
     public Mat getBlob() {
         return blob;
     }

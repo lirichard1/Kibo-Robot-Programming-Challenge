@@ -5,24 +5,25 @@ import jp.jaxa.iss.kibo.rpc.api.KiboRpcService;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.ArrayList;
 
 import gov.nasa.arc.astrobee.Result;
 import gov.nasa.arc.astrobee.types.Point;
 import gov.nasa.arc.astrobee.types.Quaternion;
 
-import org.opencv.android.Utils;
 //import org.opencv.aruco.Aruco;
 //import org.opencv.aruco.Dictionary;
+import org.opencv.dnn.Dnn;
+import org.opencv.dnn.Net;
 import org.opencv.objdetect.ArucoDetector;
 import org.opencv.objdetect.Dictionary;
 import org.opencv.core.Core;
 import org.opencv.core.CvType;
-import org.opencv.core.DMatch;
 import org.opencv.core.Mat;
 
+import android.content.Context;
 import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.text.TextUtils;
 import android.util.Log;
 
@@ -34,9 +35,7 @@ import org.opencv.core.MatOfPoint;
 import org.opencv.core.MatOfPoint2f;
 import org.opencv.core.Rect;
 import org.opencv.core.Scalar;
-import org.opencv.core.Size;
 import org.opencv.features2d.BFMatcher;
-import org.opencv.features2d.DescriptorMatcher;
 import org.opencv.features2d.ORB;
 import org.opencv.imgproc.Imgproc;
 import org.opencv.calib3d.Calib3d;
@@ -47,28 +46,10 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
-import org.opencv.core.MatOfFloat;
-import org.opencv.objdetect.HOGDescriptor;
 import org.opencv.objdetect.Objdetect;
 
-import org.opencv.core.CvType;
-import org.opencv.core.Mat;
-import org.opencv.core.CvException;
-import org.opencv.android.OpenCVLoader;
-import org.opencv.ml.SVM;
-
-import org.opencv.android.OpenCVLoader;
-import org.opencv.core.CvType;
-import org.opencv.core.Mat;
-import org.opencv.core.MatOfPoint;
 //import org.opencv.core.Moments;
-import org.opencv.imgproc.Imgproc;
 import java.io.File;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
 
 /**
  * Class meant to handle commands from the Ground Data System and execute them in Astrobee
@@ -98,6 +79,26 @@ public class YourService extends KiboRpcService {
 
 
     }
+
+//    public String assetFilePath(String assetName, Context context) throws IOException {
+//        File file = new File(context.getFilesDir(), assetName);
+//        try (InputStream is = context.getAssets().open(assetName)) {
+//            try (OutputStream os = new FileOutputStream(file)) {
+//                byte[] buffer = new byte[4 * 1024];
+//                int read;
+//                while ((read = is.read(buffer)) != -1) {
+//                    os.write(buffer, 0, read);
+//                }
+//                os.flush();
+//            }
+//            Log.i("ROT", "OPEN FILE SUCCCESS!");
+//            return file.getAbsolutePath();
+//        } catch (Exception e) {
+//            Log.e("ROT", e.getMessage());
+//            Log.i("ROT", "ERROR writing asset path");
+//            return null;
+//        }
+//    }
 
     @Override
     protected void runPlan1() {
@@ -173,7 +174,11 @@ public class YourService extends KiboRpcService {
 //                ++loopCounter;
 //
 //            }
+
+            Net net = Dnn.readNetFromONNX(assetFilePath("my_model_50_wende.onnx", this));
+
             goToPoint(point, quaternion);
+
 
             api.flashlightControlFront(0.01f);
             Thread.sleep(2000);
@@ -206,27 +211,33 @@ public class YourService extends KiboRpcService {
 //            Log.i(TAG, joined);
             int destination = 0;
             Log.i(TAG, "ABOUT TO DO PREDICTIONS");
-            PredictionResult predictionResult = processImage(image, templatePaths, destination);
+            PredictionResult predictionResult = processImage(image, net, destination);
             String[] strPreds = predictionResult.getLabels();
-            int numObjects = predictionResult.getNumObjects();
+            Log.i("ROT", "PREDICTIONS FOR AREA 1: "+Arrays.toString(strPreds));
+            int num_Objects = predictionResult.getNumObjects();
             Log.i(TAG, "FINISHED IMAGE RECOGNITION, START COUNT OBJECTS");
             Log.i(TAG, "FINISHED COUNT OBJECTS");
 
             if (predictionResult != null) {
                 predictions.add(strPreds);
-                api.saveMatImage(predictionResult.getOriginalBlob(), "original_inference.png");
                 api.saveMatImage(predictionResult.getBlob(), "inference.png");
             } else {
                 Log.i(TAG, "Prediction is null for area 1, guessing");
                 api.setAreaInfo(1, "Beaker", 1);
             }
-            if (numObjects > 0) {
+            if (num_Objects > 0) {
                 for (int i = 0;i<strPreds.length;i++) {
-                    api.setAreaInfo(1, strPreds[i], numObjects);
+                    if (strPreds[i].equals("crystal")||strPreds[i].equals("diamond")||strPreds[i].equals("emerald")) {
+                        continue;
+                    }
+                    api.setAreaInfo(1, strPreds[i], num_Objects);
 
                 }
             }else {
                 for (int i = 0;i<strPreds.length;i++) {
+                    if (strPreds[i].equals("crystal")||strPreds[i].equals("diamond")||strPreds[i].equals("emerald")) {
+                        continue;
+                    }
                     api.setAreaInfo(1, strPreds[i], 2);
 
                 }
@@ -278,12 +289,12 @@ public class YourService extends KiboRpcService {
             //String joined1 = TextUtils.join(", ", corners1);
             //Log.i(TAG, joined1); done
             destination++;
-            PredictionResult predictionResult1 = processImage(image1, templatePaths, destination);
+            PredictionResult predictionResult1 = processImage(image1, net, destination);
             String[] strPreds1 = predictionResult1.getLabels();
+            Log.i("ROT", "PREDICTIONS FOR AREA 2: "+Arrays.toString(strPreds1));
             int numObjects1 = predictionResult1.getNumObjects();
             //int numObjects1 = countObjects(image1);
             if (predictionResult1 != null) {
-                api.saveMatImage(predictionResult1.getOriginalBlob(), "original_inference1.png");
                 api.saveMatImage(predictionResult1.getBlob(), "inference1.png");
                 predictions.add(strPreds1);
             } else {
@@ -292,10 +303,16 @@ public class YourService extends KiboRpcService {
             }
             if (numObjects1 > 0) {
                 for (int i = 0;i<strPreds1.length;i++) {
+                    if (strPreds1[i].equals("crystal")||strPreds1[i].equals("diamond")||strPreds1[i].equals("emerald")) {
+                        continue;
+                    }
                     api.setAreaInfo(2, strPreds1[i], numObjects1);
                 }
             }else {
                 for (int i = 0;i<strPreds1.length;i++) {
+                    if (strPreds1[i].equals("crystal")||strPreds1[i].equals("diamond")||strPreds1[i].equals("emerald")) {
+                        continue;
+                    }
                     api.setAreaInfo(2, strPreds1[i], 4);
                 }
             }
@@ -332,12 +349,12 @@ public class YourService extends KiboRpcService {
             //String joined1 = TextUtils.join(", ", corners1);
             //Log.i(TAG, joined1);
             destination++;
-            PredictionResult predictionResult2 = processImage(image2, templatePaths, destination);
+            PredictionResult predictionResult2 = processImage(image2, net, destination);
             String[] strPreds2 = predictionResult2.getLabels();
+            Log.i("ROT", "PREDICTIONS FOR AREA 3: "+Arrays.toString(strPreds2));
             int numObjects2 = predictionResult2.getNumObjects();
             //int numObjects1 = countObjects(image1);
             if (predictionResult2 != null) {
-                api.saveMatImage(predictionResult2.getOriginalBlob(), "original_inference2.png");
                 api.saveMatImage(predictionResult2.getBlob(), "inference2.png");
                 predictions.add(strPreds2);
             } else {
@@ -346,10 +363,16 @@ public class YourService extends KiboRpcService {
             }
             if (numObjects2 > 0) {
                 for (int i = 0;i<strPreds2.length;i++) {
-                    api.setAreaInfo(3, strPreds1[i], numObjects2);
+                    if (strPreds2[i].equals("crystal")||strPreds2[i].equals("diamond")||strPreds2[i].equals("emerald")) {
+                        continue;
+                    }
+                    api.setAreaInfo(3, strPreds2[i], numObjects2);
                 }
             }else {
                 for (int i = 0;i<strPreds2.length;i++) {
+                    if (strPreds2[i].equals("crystal")||strPreds2[i].equals("diamond")||strPreds2[i].equals("emerald")) {
+                        continue;
+                    }
                     api.setAreaInfo(3, strPreds2[i], 4);
                 }
             }
@@ -380,12 +403,11 @@ public class YourService extends KiboRpcService {
             //String joined1 = TextUtils.join(", ", corners1);
             //Log.i(TAG, joined1);
             destination++;
-            PredictionResult predictionResult3 = processImage(image3, templatePaths, destination);
+            PredictionResult predictionResult3 = processImage(image3, net, destination);
             String[] strPreds3 = predictionResult3.getLabels();
             int numObjects3 = predictionResult3.getNumObjects();
             //int numObjects1 = countObjects(image1);
             if (predictionResult3 != null) {
-                api.saveMatImage(predictionResult3.getOriginalBlob(), "original_inference3.png");
                 api.saveMatImage(predictionResult3.getBlob(), "inference3.png");
                 predictions.add(strPreds3);
             } else {
@@ -394,10 +416,16 @@ public class YourService extends KiboRpcService {
             }
             if (numObjects3 > 0) {
                 for (int i = 0;i<strPreds3.length;i++) {
+                    if (strPreds3[i].equals("crystal")||strPreds3[i].equals("diamond")||strPreds3[i].equals("emerald")) {
+                        continue;
+                    }
                     api.setAreaInfo(4, strPreds3[i], numObjects3);
                 }
             }else {
                 for (int i = 0;i<strPreds3.length;i++) {
+                    if (strPreds3[i].equals("crystal")||strPreds3[i].equals("diamond")||strPreds3[i].equals("emerald")) {
+                        continue;
+                    }
                     api.setAreaInfo(4, strPreds3[i], 4);
                 }
             }
@@ -528,8 +556,7 @@ public class YourService extends KiboRpcService {
                 api.saveMatImage(target_item, "target_item.png");
             }
             destination++;
-            PredictionResult targetResult = processImage(target_item, templatePaths, destination);
-            api.saveMatImage(targetResult.getOriginalBlob(), "original_inference_target.png");
+            PredictionResult targetResult = processImage(target_item, net, destination);
             api.saveMatImage(targetResult.getBlob(), "inference_target.png");
             api.notifyRecognitionItem();
             Log.i("ROT", "targetClass:"+ Arrays.toString(targetResult.getLabels()));
@@ -636,7 +663,25 @@ public class YourService extends KiboRpcService {
 
     }
 
-
+    public String assetFilePath(String assetName, Context context) throws IOException {
+        File file = new File(context.getFilesDir(), assetName);
+        try (InputStream is = context.getAssets().open(assetName)) {
+            try (OutputStream os = new FileOutputStream(file)) {
+                byte[] buffer = new byte[4 * 1024];
+                int read;
+                while ((read = is.read(buffer)) != -1) {
+                    os.write(buffer, 0, read);
+                }
+                os.flush();
+            }
+            Log.i("ROT", "OPEN FILE SUCCCESS!");
+            return file.getAbsolutePath();
+        } catch (Exception e) {
+            Log.e("ROT", e.getMessage());
+            Log.i("ROT", "ERROR writing asset path");
+            return null;
+        }
+    }
     @SuppressWarnings("UnusedReturnValue")
 //    private void moveTo(Point point, Quaternion quaternion) throws InterruptedException {
 //        final int LOOP_MAX = 10;
@@ -1145,8 +1190,11 @@ public class YourService extends KiboRpcService {
         return huMomentsArray;
     }
 
-    private PredictionResult processImage(Mat mainImage, List<Integer> templatePaths, int destination) {
-        String[] classNames = {"beaker", "goggle", "hammer", "kapton-tape", "pipette", "screwdriver", "thermometer", "top", "watch", "wrench"};
+
+
+
+    public PredictionResult processImage(Mat mainImage, Net net, int destination) {
+ //       String[] classNames = {"beaker", "goggle", "hammer", "kapton-tape", "pipette", "screwdriver", "thermometer", "top", "watch", "wrench"};
 //        File folder = new File(folderPath);
 //        File[] files = folder.listFiles();
 
@@ -1187,7 +1235,7 @@ public class YourService extends KiboRpcService {
 
         Objdetect.drawDetectedMarkers(image_markers, corners, ids);
 
-        api.saveMatImage(image_markers, "aruco_marker" + destination + ".png");
+        //api.saveMatImage(image_markers, "aruco_marker" + destination + ".png");
         // Initialize variables for minimum distance calculation
         double mindist = 6000;
         int m = 0;
@@ -1229,10 +1277,9 @@ public class YourService extends KiboRpcService {
         cz=cz*0.07/aruco_height;
         Log.i(TAG, "aruco center(x,y):["+Double.valueOf(cx)+","+Double.valueOf(cz)+"]");
         Log.i(TAG, "aruco width and height: "+ Double.valueOf(aruco_width)+","+Double.valueOf(aruco_height)+"]");
+
         Mat edges = new Mat();
         Imgproc.Canny(image, edges, 50, 150);
-
-
         Mat hierarchy = new Mat();
         List<MatOfPoint> contoursList = new ArrayList<>();
         Imgproc.findContours(edges, contoursList, hierarchy, Imgproc.RETR_TREE, Imgproc.CHAIN_APPROX_SIMPLE);
@@ -1257,14 +1304,17 @@ public class YourService extends KiboRpcService {
             double epsilon = 0.02 * Imgproc.arcLength(contour, true);
             MatOfPoint2f approx = new MatOfPoint2f();
             Imgproc.approxPolyDP(contour, approx, epsilon, true);
-
+            // find the top right corner
             if (approx.total() == 4) {
-
                 org.opencv.core.Point[] cornersArray = approx.toArray();
                 org.opencv.core.Point top_left = cornersArray[0];
                 org.opencv.core.Point top_right = cornersArray[1];
                 org.opencv.core.Point bottom_right = cornersArray[2];
                 org.opencv.core.Point bottom_left = cornersArray[3];
+
+
+
+
                 Log.i(TAG,"top_left"+destination+":"+String.valueOf(top_left.x)+","+String.valueOf(top_left.y));
                 Log.i(TAG,"top_right"+destination+":"+String.valueOf(top_right.x)+","+String.valueOf(top_right.y));
                 Log.i(TAG,"bottom_left"+destination+":"+String.valueOf(bottom_left.x)+","+String.valueOf(bottom_left.y));
@@ -1279,8 +1329,7 @@ public class YourService extends KiboRpcService {
                     List<MatOfPoint> contourList1 = new ArrayList<>();
                     contourList1.add(new MatOfPoint(approx.toArray())); // Convert back to MatOfPoint
                     Imgproc.drawContours(imageContours, contourList1, -1, new Scalar(0, 255, 0), 3);
-                    api.saveMatImage(imageContours, "paper_outline"+destination+".png");
-
+                    //api.saveMatImage(imageContours, "paper_outline"+destination+".png");
                     String paper_width_height="Paper dimension"+destination+"(wxh):"+width+","+height;
                     Log.i(TAG, paper_width_height);
 
@@ -1349,197 +1398,18 @@ public class YourService extends KiboRpcService {
         Log.i(TAG, "image channel:" + warped.channels());
         String warped_image = "warped" + destination + ".png";
         api.saveMatImage(warped, warped_image);
-        int bestIndex = 0;
-        int binaryThreshold = 160;
-        double minAreaThreshold = 18;
-        Mat main_thresh = new Mat();
-
-        Mat graywarped=new Mat();
-        Imgproc.cvtColor(warped, graywarped, Imgproc.COLOR_BGR2GRAY);
-
-        Imgproc.threshold(graywarped, main_thresh, binaryThreshold, 255, Imgproc.THRESH_BINARY);
-
-        Mat mainEdges = new Mat();
-        Imgproc.Canny(main_thresh, mainEdges, 50, 200);
-
-        List<MatOfPoint> contoursMain = new ArrayList<>();
-        Mat hierarchy1 = new Mat();
-        Imgproc.findContours(mainEdges, contoursMain, hierarchy1, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE);
-
-        List<MatOfPoint> filteredMergedContours = new ArrayList<>();
-        List<MatOfPoint> mergedContours = mergeContours(contoursMain, 3);
-        for (MatOfPoint main_contour : mergedContours) {
-           // Log.i(TAG, "LOOPING THROUGH MERGED CONTOURS, STARTING FILTER");
-            if (Imgproc.contourArea(main_contour) >= minAreaThreshold) {
-                filteredMergedContours.add(main_contour);
-            }
-        }
-
-          // Sort contours by area
-        Collections.sort(filteredMergedContours, new Comparator<MatOfPoint>() {
-            @Override
-            public int compare(MatOfPoint contour1, MatOfPoint contour2) {
-                double area1 = Imgproc.contourArea(contour1);
-                double area2 = Imgproc.contourArea(contour2);
-                return Double.compare(area2, area1);
-            }
-        });
-
-        Rect boundingRect0 = Imgproc.boundingRect(filteredMergedContours.get(0));
-        int w = boundingRect0.width;
-        int h = boundingRect0.height;
-        double barea=w*h;
-        numObjects=0;
-        for (MatOfPoint contour : filteredMergedContours) {
-            Rect boundingRect = Imgproc.boundingRect(contour);
-            double ratio=boundingRect.width*boundingRect.height/barea;
-            if (ratio>0.4) numObjects+=1;
-        }
-
-        numObjects-=1;
-
-        if (numObjects <= 0) {
-            numObjects = 1;
-            Log.i(TAG, "Unable to find objects, guessing 1!");
-        }
-
-//        Scalar mean = new Scalar(0.7726 * 255.0, 0.7726 * 255.0, 0.7726 * 255.0);
-//        double stdev = 0.3092;
-//        String[] classes = {
-//                "beaker",
-//                "goggle",
-//                "hammer",
-//                "kapton-tape",
-//                "pipette",
-//                "screwdriver",
-//                "thermometer",
-//                "top",
-//                "watch",
-//                "wrench"
-//        };
-        //String filepath = "resnet.onxx";
-        //OpenCVModel cvModel = new OpenCVModel(this, mean, stdev, classes, filepath);
-//        OpenCVModel cvModel = new OpenCVModel(this);
-//        Log.i(TAG, "LOADED OPENCV MOBILE, STARTING INFERENCES");
-//        String pred = cvModel.inference(warped);
-//        Log.i(TAG, "prediction 0 " + pred);
-//        Log.i(TAG, "FINISHED INFERENCE");
 
 
-
-//        Scalar count_mean = new Scalar(0.7794 * 255.0, 0.7794 * 255.0, 0.7794 * 255.0);
-//        double count_stdev = 0.3461;
-//        String[] count_classes = {
-//                "1",
-//                "2",
-//                "3",
-//                "4",
-//                "5",
-//                "7",
-//        };
-//        String count_filepath = "resnet_count.onxx";
-        //OpenCVModel cvCountModel = new OpenCVModel(this, count_mean, count_stdev, count_classes, count_filepath);
-//        OpenCVModel cvCountModel = new OpenCVModel(this);
-//        Log.i(TAG, "STARTING COUNT OBJECTS");
-//        numObjects = Integer.parseInt(cvCountModel.countObjects(warped));
-//        Log.i(TAG, "FINISHED COUNT OBJECTS");
-//        Log.i(TAG, "Number of objects: " + numObjects);
-
-
-
-
-
-        // classify image base on  ORB /hog detector
-
-/*
-
-        ORB orb = ORB.create();
-        MatOfKeyPoint kp2 = new MatOfKeyPoint();
-        Mat des2 = new Mat();
-        orb.detectAndCompute(graywarped, new Mat(), kp2, des2);
-        MatOfKeyPoint kp1 = new MatOfKeyPoint();
-        // Use BFMatcher to find matches between descriptors
-        BFMatcher bf = BFMatcher.create(DescriptorMatcher.BRUTEFORCE_HAMMING, true);
-        String bestTemplatePath = null;
-        MatOfDMatch bestMatches = null;
-        int bestNumGoodMatches = 0;
-        int goodMatchThreshold = 500;//original=65
-        int index = 0;
-
-        for (Integer templatePath : templatePaths) {
-           // Log.i(TAG, "LOOPING THROUGH TEMPLATE PATHS");
-            Bitmap templateBitmap = BitmapFactory.decodeResource(getResources(), templatePath);
-            Mat template = new Mat();
-            Utils.bitmapToMat(templateBitmap, template);
-            Imgproc.cvtColor(template, template, Imgproc.COLOR_RGBA2RGB);
-            Log.i(TAG, "template_image channel:" + template.channels());
-            Mat grayTemplate = new Mat();
-            Imgproc.cvtColor(template, grayTemplate, Imgproc.COLOR_BGR2GRAY);
-
-            Mat templateThresh = new Mat();
-            //Imgproc.threshold(grayTemplate, templateThresh, binaryThreshold, 255, Imgproc.THRESH_BINARY);
-            //MatOfDMatch matches = matchTemplate(main_thresh, templateThresh, orb, bf);
-            //MatOfDMatch matches = matchTemplate(graywarped,grayTemplate, orb, bf);
-            Mat des1 = new Mat();
-            orb.detectAndCompute(grayTemplate, new Mat(), kp1, des1);
-            MatOfDMatch matches = new MatOfDMatch();
-            if( !des1.empty()  &&  !des2.empty()) {
-                bf.match(des1, des2, matches);
-                List<MatOfDMatch> matchesList = new ArrayList<>();
-                matchesList.add(matches);
-                List<DMatch> goodMatches = new ArrayList<>();
-                for (DMatch match : matches.toList()) {
-                   // Log.i(TAG, "LOOPING THROUGH MATCHES, LOOKING FOR GOOD MATCHES:" + String.valueOf(match.distance));
-                    if (match.distance < goodMatchThreshold) {
-                      Log.i(TAG, "ADDING GOOD MATCHES");
-                        goodMatches.add(match);
-                    }
-                   }
-
-            int numGoodMatches = goodMatches.size();
-            if (numGoodMatches > bestNumGoodMatches) {
-                Log.i(TAG, "NUM MATCHES BETTER THAN BEST MATCHES, OVERRIDING");
-                bestNumGoodMatches = numGoodMatches;
-                //bestTemplatePath = (templatePath);
-                bestMatches = new MatOfDMatch();
-                bestMatches.fromList(goodMatches);
-                bestIndex = index;
-              }
-            }
-            index++;
-
-        }
-        Log.i(TAG, "bestIndex: " + bestIndex);
-
-        return classNames[bestIndex];
-*/
         // Use OpenCV model here
         Log.i(TAG, "TESTING OPENCV MOBILE");
-//        Scalar mean = new Scalar(0.7726 * 255.0, 0.7726 * 255.0, 0.7726 * 255.0);
-//        double stdev = 0.3092;
-//        String[] classes = {
-//                "beaker",
-//                "goggle",
-//                "hammer",
-//                "kapton-tape",
-//                "pipette",
-//                "screwdriver",
-//                "thermometer",
-//                "top",
-//                "watch",
-//                "wrench"
-//        };
-//        String filepath = "resnet.onxx";
+
         OpenCVModel cvModel = new OpenCVModel(this);
         Log.i(TAG, "LOADED OPENCV MOBILE, STARTING INFERENCES");
-        PredictionResult predictionResult = cvModel.inference(warped);
+        Imgproc.cvtColor(mainImage, mainImage, Imgproc.COLOR_GRAY2BGR);
+        PredictionResult predictionResult = cvModel.inference(mainImage, net);
         //Log.i(TAG, "prediction 0 " + pred);
         Log.i(TAG, "FINISHED INFERENCE");
 
-        Log.i(TAG, "STARTING COUNT OBJECTS");
-        //numObjects = Integer.parseInt(cvModel.countObjects(warped));
-        Log.i(TAG, "prediction 1 " + numObjects);
-        Log.i(TAG, "FINISHED COUNT OBJECTS");
 
         return predictionResult;
     }

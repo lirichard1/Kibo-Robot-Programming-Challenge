@@ -152,7 +152,7 @@ public class OpenCVModel {
 
                 float finalConf = maxClassScore;
                 //Log.i("ROT", "final confidence: "+finalConf);
-                if (finalConf < 0.3f) continue;  // final confidence threshold
+                if (finalConf < 0.5f) continue;  // final confidence threshold
 
                 float cx = detection[0];
                 float cy = detection[1];
@@ -199,7 +199,7 @@ public class OpenCVModel {
                 MatOfFloat classConfidencesMat = new MatOfFloat(Converters.vector_float_to_Mat(classConfidences));
                 MatOfInt nmsIndices = new MatOfInt();
 
-                Dnn.NMSBoxes(classBoxesMat, classConfidencesMat, 0.3f, 0.2f, nmsIndices);
+                Dnn.NMSBoxes(classBoxesMat, classConfidencesMat, 0.5f, 0.5f, nmsIndices);
 
                 for (int i = 0; i < nmsIndices.rows(); i++) {
                     int localIdx = (int) nmsIndices.get(i, 0)[0];
